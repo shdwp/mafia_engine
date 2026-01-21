@@ -1,0 +1,21 @@
+@startuml
+
+interface GameFrame {
+
+}
+
+class GameFrameStart implements GameFrame {
+}
+
+class GameFrameRoleSelected implements GameFrame {
+}
+
+class GameStateBase {
+	players: List<GamePlayers>
+}
+
+class GameStateStart extends GameStateBase {
+
+}
+
+@enduml

@@ -1,0 +1,184 @@
+@startuml
+
+participant App as a
+actor Host as h 
+actor Player as p
+
+==== Pre-game ====
+
+loop each player
+	h -> p: ask for X pseudonym
+	h -> a: write down X pseudonym
+end
+
+h -> a: complete pre-game
+a -> h: display roles
+h -> h: sort cards
+
+==== Zero night ====
+
+loop each player
+	h -> p: let draw card
+	h -> a: mark X as ROLE
+end
+
+loop meetups
+	a -> h: display mafia
+	h -> p: wake up mafia
+	p -> p: mafia meets each other
+	a -> h: display sherif
+	h -> p: wake up sherif
+	a -> h: display doc
+	h -> p: wake up doctor
+	a -> h: display killer
+	h -> p: wake up killer
+end
+
+==== Any step ====
+
+h -> a: give penalty to X
+alt if player is ejected
+	a -> h: show player X is ejected
+end
+
+alt game ended because of the ejection
+	a -> h: show if game has ended
+	h -> p: interrupt and announce results
+end
+
+==== Day ====
+
+alt game ended during night 
+	a -> h: show if game has ended
+	h -> p: interrupt and announce results
+end
+
+a -> h: show night results
+
+alt if after first night
+	loop each player killed
+		a -> h: prompt best play for Y (show amount of numbers)
+		h -> p: ask for numbers
+		p -> h: tell numbers
+		h -> a: input numbers
+	end
+end
+
+loop each player killed
+	a -> h: prompt speech for Y
+	h -> p: ask Y to speak
+	p -> p: speaks, leaves table
+	h -> a: start timer
+	a -> h: timer end
+end
+
+loop each player
+	a -> h: prompt speech for X if not penalized
+	h -> p: ask X to speak
+	alt if not penalized
+		h -> a: start timer
+		a -> h: timer end
+	end
+
+	alt X submitted for vote Y
+		h -> a: mark Y as being voted on
+	end
+end
+
+alt if there are votes
+	a -> h: show order of votes
+	h -> p: announce order of votes
+end
+
+loop each submitted for voting (Yn)
+	h -> p: announce Yn for voting
+	h -> a: input amount of votes
+end
+
+alt Y voted out
+	a -> h: show results of the voting
+	h -> p: announce vote result
+	p -> p: voted-out Y speaks and leaves
+else even split
+	a -> h: show order of voting (only 2 participants)
+
+	loop each submitted for voting (Yn)
+		h -> p: announce Yn for voting
+		h -> a: input amount of votes
+	end
+
+	alt Y voted out
+		a -> h: show results of the voting
+		h -> p: announce vote result
+		p -> p: voted-out Y speaks and leaves
+	else even split
+		a -> h: show both players leaving vote
+		h -> p: announce both leaving vote
+		h -> a: input amount of votes
+
+		alt Y and Z voted out
+			a -> h: show both players leaving vote
+			h -> p: player Y speaks and leaves
+			h -> p: player Z speaks and leaves
+		end
+	end
+end
+
+alt game ended during day 
+	a -> h: show if game has ended
+	h -> p: interrupt and announce results
+end
+
+==== Night ====
+
+a -> h: display priest
+alt if alive
+	h -> p: wake up priest
+	p -> h: tell who to block
+	h -> a: input who is blocked
+end
+h -> p: sleep priest
+
+a -> h: display mafia, show if blocked
+h -> p: wake up mafia
+alt if any and not blocked
+	p -> h: tell who to kill
+	h -> a: input who is killed
+end
+h -> p: sleep mafia
+
+a -> h: display don, show if blocked
+h -> p: wake up don
+alt if alive and not blocked
+	p -> h: tell who to test
+	h -> a: input who is tested
+end
+h -> p: show test result
+h -> p: sleep don
+
+a -> h: display sheriff, show if blocked
+h -> p: wake up sheriff
+alt if alive and not blocked
+	p -> h: tell who to test
+	h -> a: input who is tested
+end
+h -> p: show test result
+h -> p: sleep sheriff
+
+a -> h: display doctor, show if blocked
+h -> p: wake up doctor
+alt if alive and not blocked
+	p -> h: tell who to heal
+	h -> a: input who is healed
+end
+h -> p: sleep doctor
+
+a -> h: display killed, show if blocked
+h -> p: wake up killer
+alt if alive and not blocked
+	p -> h: tell who to kill
+	h -> a: input who is killed
+end
+h -> p: sleep killer
+
+@enduml
