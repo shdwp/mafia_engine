@@ -1,113 +1,12 @@
-import 'package:async/async.dart';
 import 'package:mafia_engine/data/game_enums.dart';
+import 'package:mafia_engine/data/game_repository.dart';
 import 'package:uuid/uuid.dart';
-
-extension GameTree on GameFrame {
-  Iterable<GameFrame> findAllPreceeding(bool Function(GameFrame x) predicate) {
-    var result = List<GameFrame>.empty(growable: true);
-    var frame = this;
-    if (predicate(frame)) result.add(frame);
-
-    while (frame.previous != null) {
-      frame = frame.previous!;
-      if (predicate(frame)) result.add(frame);
-    }
-    return result;
-  }
-
-  Iterable<T> takeAllBackwardsIncludingUntil<T extends GameFrame>(
-    bool Function(T frame) predicate,
-  ) {
-    var result = List<T>.empty(growable: true);
-    var frame = this;
-
-    if (frame is T) {
-      result.add(frame);
-      if (predicate(frame)) return result;
-    }
-
-    while (frame.previous != null) {
-      frame = frame.previous!;
-
-      if (frame is T) {
-        result.add(frame);
-        if (predicate(frame)) return result;
-      }
-    }
-    return result;
-  }
-
-  Iterable<T> takeAllForwards<T extends GameFrame>() {
-    var result = List<T>.empty(growable: true);
-    var frame = this;
-
-    if (frame is T) {
-      result.add(frame);
-    }
-
-    while (frame.next != null) {
-      frame = frame.next!;
-
-      if (frame is T) {
-        result.add(frame);
-      }
-    }
-    return result;
-  }
-
-  T? findBackwards<T extends GameFrame>() {
-    var frame = this;
-    if (frame is T) return frame;
-
-    while (frame.previous != null) {
-      frame = frame.previous!;
-      if (frame is T) return frame;
-    }
-    return null;
-  }
-
-  GameFrame findLast() {
-    var frame = this;
-    while (frame.next != null) {
-      frame = frame.next!;
-    }
-    return frame;
-  }
-
-  GameFrame findFirst() {
-    var frame = this;
-    while (frame.previous != null) {
-      frame = frame.previous!;
-    }
-    return frame;
-  }
-
-  int countNext() {
-    var amount = 1;
-    var frame = this;
-    while (frame.next != null) {
-      frame = frame.next!;
-      amount++;
-    }
-    return amount;
-  }
-
-  int countPrevious() {
-    var amount = 1;
-    var frame = this;
-    while (frame.previous != null) {
-      frame = frame.previous!;
-      amount++;
-    }
-    return amount;
-  }
-}
 
 abstract class GameFrame {
   GameFrame() : id = Uuid().v4().substring(0, 6);
   Map<String, dynamic> toJson() => {
     "id": id,
-    "type": this.runtimeType.toString(),
+    "type": runtimeType.toString(),
     "previous": previous?.id,
     "next": next?.id,
     "dirty": dirty,
@@ -118,13 +17,38 @@ abstract class GameFrame {
   GameFrame? next;
 
   bool dirty = true;
+
+  bool get isDirty => dirty;
   bool get isValid => true;
 }
 
-class GameFrameStart extends GameFrame {
+class GameFrameStart extends GameFrame {}
+
+class GameFrameNarratorPenalize extends GameFrame {
+  GameFrameNarratorPenalize();
+  GameFrameNarratorPenalize.fromJson(GameLoadState state)
+    : index = state.get("index"),
+      amount = state.get("amount");
+
+  @override
+  Map<String, dynamic> toJson() {
+    var dict = super.toJson();
+    dict.addAll({"index": index, "amount": amount});
+    return dict;
+  }
+
+  @override
+  bool get isDirty => false;
+
+  int? index;
+  int amount = 0;
 }
 
 class GameFrameAddPlayers extends GameFrame {
+  GameFrameAddPlayers();
+  GameFrameAddPlayers.fromJson(GameLoadState state)
+    : players = state.getList("players");
+
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
@@ -136,24 +60,29 @@ class GameFrameAddPlayers extends GameFrame {
 }
 
 class GameFrameAssignRole extends GameFrame {
-  GameFrameAssignRole(this.player);
+  GameFrameAssignRole(this.index);
+  GameFrameAssignRole.fromJson(GameLoadState state)
+    : index = state.get("index"),
+      role = GameRole.values.byName(state.get("role"));
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"playerIndex": player.index, "role": role.name});
+    dict.addAll({"index": index, "role": role.name});
     return dict;
   }
 
   @override
   bool get isValid => role != GameRole.none;
 
-  final GamePlayer player;
+  final int index;
   GameRole role = GameRole.none;
 }
 
 class GameFrameZeroNightMeet extends GameFrame {
   GameFrameZeroNightMeet(this.roleGroup);
+  GameFrameZeroNightMeet.fromJson(GameLoadState state)
+    : roleGroup = GameRole.values.byName(state.get("roleGroup"));
 
   @override
   Map<String, dynamic> toJson() {
@@ -166,95 +95,148 @@ class GameFrameZeroNightMeet extends GameFrame {
 }
 
 class GameFrameDaySpeech extends GameFrame {
-  GameFrameDaySpeech(this.player, this.dayOpening);
+  GameFrameDaySpeech(this.index, this.dayOpening);
+  GameFrameDaySpeech.fromJson(GameLoadState state)
+    : index = state.get("index"),
+      dayOpening = state.get("dayOpening"),
+      putUpForVoteIndex = state.get("putUpForVoteIndex");
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
     dict.addAll({
-      "playerIndex": player.index,
+      "index": index,
       "dayOpening": dayOpening,
       "putUpForVoteIndex": putUpForVoteIndex,
     });
     return dict;
   }
 
-  final GamePlayer player;
+  final int index;
   final bool dayOpening;
   int? putUpForVoteIndex;
 }
 
 class GameFrameDayVotingStart extends GameFrame {
-  GameFrameDayVotingStart(this.players);
-
-  @override
-  Map<String, dynamic> toJson() {
-    var dict = super.toJson();
-    dict.addAll({"playerIndexes": players.map((p) => p.index).toList()});
-    return dict;
-  }
-
-  final List<GamePlayer> players;
-}
-
-class GameFrameDayPlayerVotingSpeech extends GameFrame {
-  GameFrameDayPlayerVotingSpeech(this.player);
-
-  @override
-  Map<String, dynamic> toJson() {
-    var dict = super.toJson();
-    dict.addAll({"playerIndex": player.index});
-    return dict;
-  }
-
-  final GamePlayer player;
-}
-
-class GameFrameDayVoteOn extends GameFrame {
-  GameFrameDayVoteOn(this.playerToVoteFor);
+  GameFrameDayVotingStart(this.indexes, this.previousVoteIndexes);
+  GameFrameDayVotingStart.fromJson(GameLoadState state)
+    : indexes = state.getList("playerIndexes"),
+      previousVoteIndexes = state.getList("previousVoteIndexes");
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
     dict.addAll({
-      "playerIndex": playerToVoteFor.index,
-      "voteIndexes": votes.map((v) => v.index).toList(),
+      "playerIndexes": indexes,
+      "previousVoteIndexes": previousVoteIndexes,
     });
     return dict;
   }
 
-  final GamePlayer playerToVoteFor;
-  List<GamePlayer> votes = List.empty(growable: true);
+  final List<int> indexes;
+  final List<int> previousVoteIndexes;
+}
+
+class GameFrameDayPlayerVotingSpeech extends GameFrame {
+  GameFrameDayPlayerVotingSpeech(this.index);
+  GameFrameDayPlayerVotingSpeech.fromJson(GameLoadState state)
+    : index = state.get("index");
+
+  @override
+  Map<String, dynamic> toJson() {
+    var dict = super.toJson();
+    dict.addAll({"index": index});
+    return dict;
+  }
+
+  final int index;
+}
+
+class GameFrameDayVoteOnPlayerLeaving extends GameFrame {
+  GameFrameDayVoteOnPlayerLeaving(this.playerToVoteFor);
+  GameFrameDayVoteOnPlayerLeaving.fromJson(GameLoadState state)
+    : playerToVoteFor = state.get("playerIndex"),
+      votes = state.getList("voteIndexes");
+
+  @override
+  Map<String, dynamic> toJson() {
+    var dict = super.toJson();
+    dict.addAll({"playerIndex": playerToVoteFor, "voteIndexes": votes});
+    return dict;
+  }
+
+  int get voteCount => votes.length;
+
+  final int playerToVoteFor;
+  List<int> votes = List.empty(growable: true);
+}
+
+class GameFrameDayVoteOnAllLeaving extends GameFrame {
+  GameFrameDayVoteOnAllLeaving(this.playersToVoteFor);
+  GameFrameDayVoteOnAllLeaving.fromJson(GameLoadState state)
+    : playersToVoteFor = state.getList("playerIndexes"),
+      votes = state.getList("voteIndexes");
+
+  @override
+  Map<String, dynamic> toJson() {
+    var dict = super.toJson();
+    dict.addAll({"playerIndexes": playersToVoteFor, "voteIndexes": votes});
+    return dict;
+  }
+
+  final List<int> playersToVoteFor;
+  List<int> votes = List.empty(growable: true);
   int get voteCount => votes.length;
 }
 
 class GameFrameDayPlayersVotedOut extends GameFrame {
   GameFrameDayPlayersVotedOut(this.playersVotedOut);
+  GameFrameDayPlayersVotedOut.fromJson(GameLoadState state)
+    : playersVotedOut = state.getList("playerIndexes");
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"playerIndexes": playersVotedOut.map((v) => v.index).toList()});
+    dict.addAll({"playerIndexes": playersVotedOut});
     return dict;
   }
 
-  final List<GamePlayer> playersVotedOut;
+  final List<int> playersVotedOut;
 }
 
-class GameFrameNightPriestAction extends GameFrame {}
+class GameFrameNightStart extends GameFrame {
+  GameFrameNightStart();
+  GameFrameNightStart.fromJson(GameLoadState state);
+}
 
-class GameFrameEnd extends GameFrame {
-  GameFrameEnd(this.result);
+class GameFrameDayFarewellSpeech extends GameFrame {
+  GameFrameDayFarewellSpeech(this.index);
+  GameFrameDayFarewellSpeech.fromJson(GameLoadState state)
+    : index = state.get("index");
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"result": result.name});
+    dict.addAll({"index": index});
     return dict;
   }
 
-  @override
-  bool get isValid => false;
+  final int index;
+}
 
-  final GameResult result;
+class GameFrameNightRoleAction extends GameFrame {
+  GameFrameNightRoleAction(this.role);
+  GameFrameNightRoleAction.fromJson(GameLoadState state)
+    : role = GameRole.values.byName(state.get("role")),
+      index = state.get("index");
+
+  @override
+  Map<String, dynamic> toJson() {
+    var dict = super.toJson();
+    dict.addAll({"index": index, "role": role.name});
+    return dict;
+  }
+
+  final GameRole role;
+  int? index;
 }

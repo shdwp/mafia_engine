@@ -7,7 +7,23 @@ import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_state.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'game_frame_tree.dart';
+
 enum GameError { noPrevious, noNext, frameDirty, frameNotDirty, frameInvalid }
+
+class GameLoadState {
+  GameLoadState(this._entry);
+
+  final Map<String, dynamic> _entry;
+
+  T get<T>(String key) {
+    return _entry[key] as T;
+  }
+
+  List<T> getList<T>(String key) {
+    return (_entry[key] as List<dynamic>).map((v) => v as T).toList();
+  }
+}
 
 class GameRepository {
   GameState newGame() {
@@ -45,7 +61,7 @@ class GameRepository {
   }
 
   Result<GameState> moveForward(GameFrame currentFrame) {
-    if (currentFrame.dirty) {
+    if (currentFrame.isDirty) {
       return Result.error(GameError.frameDirty);
     }
 
@@ -56,8 +72,17 @@ class GameRepository {
     return Result.error(GameError.noNext);
   }
 
+  Result<GameState> moveTop(GameFrame currentFrame) {
+    if (currentFrame.isDirty) {
+      return Result.error(GameError.frameDirty);
+    }
+
+    final lastFrame = currentFrame.findLast();
+    return Result.value(calculateState(lastFrame));
+  }
+
   Result<GameState> commitFrame(GameFrame frame) {
-    if (!frame.dirty) return Result.error(GameError.frameNotDirty);
+    if (!frame.isDirty) return Result.error(GameError.frameNotDirty);
     if (!frame.isValid) return Result.error(GameError.frameInvalid);
 
     var state = calculateState(frame);
@@ -73,7 +98,19 @@ class GameRepository {
   }
 
   bool shouldFrameBeCommited(GameFrame frame) {
-    return frame.dirty;
+    return frame.isDirty;
+  }
+
+  Result<GameState> penalize(GameFrame frame) {
+    var newFrame = GameFrameNarratorPenalize();
+    frame.previous!.next = newFrame;
+    newFrame.next = frame;
+    newFrame.previous = frame.previous!;
+    frame.previous = newFrame;
+
+    var state = calculateState(newFrame);
+    _saveTree(newFrame);
+    return Result.value(state);
   }
 
   GameState calculateState(GameFrame lastFrame) {
@@ -86,10 +123,12 @@ class GameRepository {
     final path = "${directory.path}/${root.id}.json";
     final file = File(path);
 
-    var structure = Map<String, dynamic>.new();
-    for (final frame in root.takeAllForwards()) {
-      structure[frame.id] = frame.toJson();
-    }
+    GameFrame? currentFrame = root;
+    var structure = <String, dynamic>{};
+    do {
+      structure[currentFrame!.id] = currentFrame.toJson();
+      currentFrame = currentFrame.next;
+    } while (currentFrame != null);
 
     await file.create();
     await file.writeAsString(json.encode(structure));
@@ -100,12 +139,13 @@ class GameRepository {
     final jsonString = await file.readAsString();
     final dict = json.decode(jsonString) as Map<String, dynamic>;
 
-    var frameMap = Map<String, GameFrame>.new();
-    var playerList = List<GamePlayer>.empty(growable: true);
+    var frameMap = <String, GameFrame>{};
     GameFrame? rootFrame;
 
     for (final kv in dict.entries) {
       GameFrame? result;
+      final state = GameLoadState(kv.value as Map<String, dynamic>);
+
       switch (kv.value["type"]) {
         case "GameFrameStart":
           var frame = GameFrameStart();
@@ -114,73 +154,63 @@ class GameRepository {
           break;
 
         case "GameFrameAddPlayers":
-          var frame = GameFrameAddPlayers();
-          final List<dynamic> nameList = kv.value["players"];
-          frame.players = nameList.map((v) => v.toString()).toList();
-          for (final kv in nameList.indexed) {
-            playerList.add(GamePlayer(kv.$1, kv.$2, GameRole.none, true));
-          }
-          result = frame;
+          result = GameFrameAddPlayers.fromJson(state);
           break;
 
         case "GameFrameAssignRole":
-          final player = playerList[kv.value["playerIndex"]];
-          var frame = GameFrameAssignRole(player);
-          frame.role = GameRole.values.byName(kv.value["role"]);
-          result = frame;
+          result = GameFrameAssignRole.fromJson(state);
           break;
 
         case "GameFrameZeroNightMeet":
-          var frame = GameFrameZeroNightMeet(
-            GameRole.values.byName(kv.value["roleGroup"]),
-          );
-          result = frame;
+          result = GameFrameZeroNightMeet.fromJson(state);
           break;
 
         case "GameFrameDaySpeech":
-          final player = playerList[kv.value["playerIndex"]];
-          var frame = GameFrameDaySpeech(
-            player,
-            kv.value["dayOpening"] as bool,
-          );
-          frame.putUpForVoteIndex = kv.value["putUpForVoteIndex"] as int?;
-          result = frame;
+          result = GameFrameDaySpeech.fromJson(state);
           break;
 
         case "GameFrameDayVotingStart":
-          final playerIndexes = kv.value["playerIndexes"] as List<dynamic>;
-          var frame = GameFrameDayVotingStart(
-            playerList.where((p) => playerIndexes.contains(p.index)).toList(),
-          );
-          result = frame;
+          result = GameFrameDayVotingStart.fromJson(state);
           break;
 
         case "GameFrameDayPlayerVotingSpeech":
-          final player = playerList[kv.value["playerIndex"]];
-          var frame = GameFrameDayPlayerVotingSpeech(player);
-          result = frame;
+          result = GameFrameDayPlayerVotingSpeech.fromJson(state);
           break;
 
-        case "GameFrameDayVoteOn":
-          final playerIndexes = kv.value["voteIndexes"] as List<dynamic>;
-          final player = playerList[kv.value["playerIndex"]];
-          var frame = GameFrameDayVoteOn(player);
-          frame.votes = playerList
-              .where((p) => playerIndexes.contains(p.index))
-              .toList();
-          result = frame;
+        case "GameFrameDayVoteOnPlayerLeaving":
+          result = GameFrameDayVoteOnPlayerLeaving.fromJson(state);
+          break;
+
+        case "GameFrameDayVoteOnAllLeaving":
+          result = GameFrameDayVoteOnAllLeaving.fromJson(state);
           break;
 
         case "GameFrameDayPlayersVotedOut":
-          final playerIndexes = kv.value["playerIndexes"] as List<dynamic>;
-          var frame = GameFrameDayPlayersVotedOut(
-            playerList.where((p) => playerIndexes.contains(p.index)).toList(),
-          );
-          result = frame;
+          result = GameFrameDayPlayersVotedOut.fromJson(state);
+          break;
+
+        case "GameFrameNightPriestAction":
+          result = GameFrameNightRoleAction.fromJson(state);
+          break;
+
+        case "GameFrameNarratorPenalize":
+          result = GameFrameNarratorPenalize.fromJson(state);
+          break;
+
+        case "GameFrameNightStart":
+          result = GameFrameNightStart.fromJson(state);
+          break;
+
+        case "GameFrameNightRoleAction":
+          result = GameFrameNightRoleAction.fromJson(state);
+          break;
+
+        case "GameFrameDayFarewellSpeech":
+          result = GameFrameDayFarewellSpeech.fromJson(state);
           break;
 
         default:
-          assert(false);
+          assert(false, "unknown type: ${kv.value["type"]}");
           break;
       }
 

@@ -26,7 +26,7 @@ GoRouter router() => GoRouter(
             return GameScreen(
               viewModel: GameViewModel(
                 repository: context.read(),
-                lastState: gameState,
+                state: gameState,
               ),
             );
           },

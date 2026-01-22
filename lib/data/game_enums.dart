@@ -69,18 +69,38 @@ extension PlayerListFilters on Iterable<GamePlayer> {
 
     return result!;
   }
+
+  GamePlayer findNext(int index) {
+    GamePlayer? result;
+
+    var count = 0;
+    index++;
+    while (count <= length) {
+      if (length <= index) index = 0;
+      var player = this.elementAt(index);
+      return player;
+    }
+
+    return result!;
+  }
 }
 
 class GamePlayer {
-  const GamePlayer(this.index, this.name, this.role, this.alive);
+  GamePlayer(this.index, this.name)
+    : role = GameRole.none,
+      alive = true,
+      penalties = 0;
+
   @override
   bool operator ==(Object other) => other is GamePlayer && other.index == index;
   @override
   int get hashCode => index;
 
-  final int index;
   String get seatName => (index + 1).toString();
-  final String name;
-  final GameRole role;
-  final bool alive;
+
+  int index;
+  String name;
+  GameRole role;
+  bool alive;
+  int penalties;
 }
