@@ -43,7 +43,7 @@ class _GameScreenAssignRoleState extends State<GameScreenAssignRoleWidget> {
         for (final role in widget.viewModel.allRoles) {
           var roleWidget = TextButton(
             onPressed: () => widget.viewModel.assign(role),
-            child: GamePlayerRoleWidget(role: role),
+            child: GamePlayerRoleWidget(role: role, fontSize: 24),
           );
 
           if (role.isCivilian) {
@@ -56,26 +56,32 @@ class _GameScreenAssignRoleState extends State<GameScreenAssignRoleWidget> {
         }
 
         return Column(
+          spacing: 16,
           children: [
-            Text(widget.viewModel.player.seatName),
-            Text(widget.viewModel.player.name),
+            GamePlayerBadgeWidget(
+              player: widget.viewModel.player,
+              showRole: true,
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text("Current: "),
+                Text("Current: ", style: TextStyle(fontSize: 21)),
                 GamePlayerRoleWidget(role: widget.viewModel.role),
               ],
             ),
             Divider(),
             Row(
+              spacing: 16,
               mainAxisAlignment: MainAxisAlignment.center,
               children: redRoleWidgets,
             ),
             Row(
+              spacing: 16,
               mainAxisAlignment: MainAxisAlignment.center,
               children: blackRoleWidgets,
             ),
             Row(
+              spacing: 16,
               mainAxisAlignment: MainAxisAlignment.center,
               children: otherRoleWidgets,
             ),
@@ -90,9 +96,10 @@ class GameZeroNightMeetViewModel
     extends GameFrameViewModel<GameFrameZeroNightMeet> {
   GameZeroNightMeetViewModel(super.gameViewModel, super.lastFrame);
 
-  String get role => current.roleGroup.toString();
-  String get seats =>
-      ""; // lastState.players .map((p) => p.seatName).join(", ");
+  GameRole get role => current.roleGroup;
+  Iterable<GamePlayer> get players => role == GameRole.mafia
+      ? state.players.whereMafia()
+      : state.players.whereRole(role);
 }
 
 class GameScreenZeroNightMeetWidget extends StatefulWidget {
@@ -107,8 +114,9 @@ class _GameScreenZeroNightMeetState
     extends State<GameScreenZeroNightMeetWidget> {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [Text(widget.viewModel.role), Text(widget.viewModel.seats)],
+    return GamePlayerListWidget(
+      players: widget.viewModel.players,
+      showRoles: true,
     );
   }
 }

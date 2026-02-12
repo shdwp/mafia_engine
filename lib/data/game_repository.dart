@@ -63,7 +63,7 @@ class GameRepository {
   }
 
   GameState newGame() {
-    return calculateState(GameFrameStart());
+    return GameState.calculate(GameFrameStart());
   }
 
   Future<Result<String>> duplicate(GameFrame frame) async {
@@ -91,7 +91,7 @@ class GameRepository {
     if (frame.isError) {
       return frame.asError!;
     } else {
-      return Result.value(calculateState(frame.asValue!.value));
+      return Result.value(GameState.calculate(frame.asValue!.value));
     }
   }
 
@@ -117,7 +117,7 @@ class GameRepository {
 
   Result<GameState> moveBackward(GameFrame currentFrame) {
     return currentFrame.previous != null
-        ? Result.value(calculateState(currentFrame.previous!))
+        ? Result.value(GameState.calculate(currentFrame.previous!))
         : Result.error(GameError.noPrevious);
   }
 
@@ -127,7 +127,7 @@ class GameRepository {
     }
 
     if (currentFrame.next != null) {
-      return Result.value(calculateState(currentFrame.next!));
+      return Result.value(GameState.calculate(currentFrame.next!));
     }
 
     return Result.error(GameError.noNext);
@@ -139,13 +139,13 @@ class GameRepository {
     }
 
     final lastFrame = currentFrame.findLast();
-    return Result.value(calculateState(lastFrame));
+    return Result.value(GameState.calculate(lastFrame));
   }
 
   Result<GameState> setTop(GameFrame currentFrame) {
     currentFrame.next = null;
     final lastFrame = currentFrame.findLast();
-    return Result.value(calculateState(lastFrame));
+    return Result.value(GameState.calculate(lastFrame));
   }
 
   Result<GameState> commitFrame(GameFrame frame) {
@@ -156,10 +156,12 @@ class GameRepository {
       commitPlayerNames(frame.players);
     }
 
-    var state = calculateState(frame);
+    var state = GameState.calculate(frame, ignoreLast: false);
     frame.previous?.next = frame;
     frame.dirty = false;
-    frame.next = state.nextFrame!;
+    frame.next = GameState.createNextFrame(frame, state);
+    frame.next!.previous = frame;
+
     _saveTree(frame);
     return Result.value(state);
   }
@@ -179,13 +181,13 @@ class GameRepository {
     newFrame.previous = frame.previous!;
     frame.previous = newFrame;
 
-    var state = calculateState(newFrame);
+    var state = GameState.calculate(newFrame);
     _saveTree(newFrame);
     return Result.value(state);
   }
 
   Result<GameState> override(GameFrame frame) {
-    var state = calculateState(frame);
+    var state = GameState.calculate(frame);
     var newFrame = GameFrameNarratorStateOverride(
       GameFrameNarratorStateOverrideType.dayStart,
       state.players.map((p) {
@@ -196,13 +198,9 @@ class GameRepository {
     newFrame.previous = frame.previous!;
     frame.previous = newFrame;
 
-    var newState = calculateState(newFrame);
+    var newState = GameState.calculate(newFrame);
     _saveTree(newFrame);
     return Result.value(newState);
-  }
-
-  GameState calculateState(GameFrame lastFrame) {
-    return GameState.calculate(lastFrame);
   }
 
   void _savePlayerNames(Iterable<String> names) async {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
+import 'package:provider/provider.dart';
 
 import '../game_viewmodel.dart';
 import '../game_widgets.dart';
@@ -19,7 +21,18 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [Text(viewModel.player.seatName), Text(viewModel.player.name)],
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 8,
+          children: [
+            GamePlayerBadgeWidget(player: viewModel.player),
+            GameTimerWidget(
+              timeInSeconds: context.read<GameConfigService>().farewellTimer,
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -62,8 +75,16 @@ class _GameScreenDaySpeechState extends State<GameScreenDaySpeechWidget> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(widget.viewModel.player.seatName),
-        Text(widget.viewModel.player.name),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 8,
+          children: [
+            GamePlayerBadgeWidget(player: widget.viewModel.player),
+            GameTimerWidget(
+              timeInSeconds: context.read<GameConfigService>().speechTimer,
+            ),
+          ],
+        ),
         Expanded(
           child: ListenableBuilder(
             listenable: widget.viewModel,
@@ -95,10 +116,19 @@ class GameScreenDayVotingStartWidget extends StatelessWidget {
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
+          child: ListView.separated(
+            separatorBuilder: (context, index) => SizedBox(height: 18),
             itemCount: viewModel.players.length,
-            itemBuilder: (context, index) =>
-                Text(viewModel.players.elementAt(index).seatName),
+            itemBuilder: (context, index) => Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GamePlayerBadgeWidget(
+                    player: viewModel.players.elementAt(index),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -123,7 +153,20 @@ class GameScreenDayPlayerVotingSpeechWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(viewModel.player.seatName);
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 8,
+          children: [
+            GamePlayerBadgeWidget(player: viewModel.player),
+            GameTimerWidget(
+              timeInSeconds: context.read<GameConfigService>().voteDefenseTimer,
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -171,8 +214,7 @@ class GameScreenDayVoteOnWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(viewModel.playerToVoteOn.seatName),
-        Text(viewModel.playerToVoteOn.name),
+        GamePlayerBadgeWidget(player: viewModel.playerToVoteOn),
         Expanded(
           child: ListenableBuilder(
             listenable: viewModel,
@@ -223,7 +265,6 @@ class GameScreenDayVoteOnAllLeavingWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text("Vote on all leaving:"),
         Expanded(
           child: ListenableBuilder(
             listenable: viewModel,
@@ -257,11 +298,22 @@ class GameScreenDayPlayersVotedOutWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        GameTimerWidget(
+          timeInSeconds: context.read<GameConfigService>().farewellTimer,
+        ),
         Expanded(
-          child: ListView.builder(
+          child: ListView.separated(
+            separatorBuilder: (context, index) => SizedBox(height: 18),
             itemCount: viewModel.players.length,
-            itemBuilder: (context, index) =>
-                Text(viewModel.players.elementAt(index).seatName),
+            itemBuilder: (context, index) => Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GamePlayerBadgeWidget(
+                  player: viewModel.players.elementAt(index),
+                ),
+              ],
+            ),
           ),
         ),
       ],

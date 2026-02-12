@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_frame_tree.dart';
 import 'package:mafia_engine/data/game_repository.dart';
@@ -31,8 +32,19 @@ class GameViewModel extends ChangeNotifier {
         return "Game hasn't started yet";
       case GameFrameAssignRole _:
         return "Wake up, assign role";
-      case GameFrameZeroNightMeet _:
-        return "Wake up players to meet";
+      case GameFrameZeroNightMeet frame:
+        switch (frame.roleGroup) {
+          case GameRole.mafia:
+            return "Mafia wakes up and meets each other";
+          case GameRole.sheriff:
+            return "Sheriff shows themselves to narrator";
+          case GameRole.doctor:
+            return "Doctor shows themselves to narrator";
+          case GameRole.killer:
+            return "Killer shows themselves to narrator";
+          default:
+            return "ERROR";
+        }
       case GameFrameDaySpeech _:
         return "Day speech";
       case GameFrameDayVotingStart _:
@@ -47,8 +59,23 @@ class GameViewModel extends ChangeNotifier {
         return "Voted-out farewell speech";
       case GameFrameNightStart _:
         return "Everyone asleep, night starts";
-      case GameFrameNightRoleAction _:
-        return "Night role action";
+      case GameFrameNightRoleAction frame:
+        switch (frame.role) {
+          case GameRole.mafia:
+            return "Mafia selects who to kill:";
+          case GameRole.don:
+            return "Don selects who to check:";
+          case GameRole.priest:
+            return "Priest selects who to block:";
+          case GameRole.sheriff:
+            return "Sheriff checks who to check:";
+          case GameRole.doctor:
+            return "Doctor selects who to save:";
+          case GameRole.killer:
+            return "Killer selects who to kill:";
+          default:
+            return "ERROR";
+        }
       case GameFrameDayFarewellSpeech _:
         return "Night-kill farewell speech";
       case GameFrameNarratorStateOverride _:

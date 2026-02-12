@@ -14,7 +14,6 @@ class GameState {
     this.frameIndex,
     this.lastFrame,
     this.gameResult,
-    this.nextFrame,
     this.players,
     this.voteMap,
     this.priestBlockedPlayer,
@@ -26,7 +25,6 @@ class GameState {
   final int frameCount;
   final int frameIndex;
   final GameFrame lastFrame;
-  final GameFrame? nextFrame;
   final GameResult gameResult;
   final List<GamePlayer> players;
   final Map<int, List<int>> voteMap;
@@ -39,7 +37,7 @@ class GameState {
   int get mafiaCount => players.mafiosi.where((p) => p.alive).length;
   int get killerCount => players.killers.where((p) => p.alive).length;
 
-  static GameState calculate(GameFrame lastFrame) {
+  static GameState calculate(GameFrame lastFrame, { bool ignoreLast = true }) {
     var players = List<GamePlayer>.empty(growable: true);
     var playersUpForVote = <GamePlayer>[];
     var rolesInTheGame = <GameRole>[];
@@ -113,20 +111,21 @@ class GameState {
           break;
       }
 
-      if (frame == lastFrame) break;
+      if (!ignoreLast) {
+        if (frame == lastFrame) break;
+      } else {
+        if (frame == lastFrame.previous) break;
+      }
       frame = frame.next;
     }
 
-    final nextFrame = _createNextFrame(lastFrame, players);
     var gameEndResult = GameState.checkForGameEnd(lastFrame, players);
-
     return GameState(
       rootFrame,
       rootFrame.countNext(),
       lastFrame.countPrevious(),
       lastFrame,
       gameEndResult,
-      nextFrame,
       players,
       voteMap,
       priestTarget != null ? players[priestTarget] : null,
@@ -135,8 +134,9 @@ class GameState {
     );
   }
 
-  static GameFrame? _createNextFrame(GameFrame last, List<GamePlayer> players) {
+  static GameFrame? createNextFrame(GameFrame last, GameState state) {
     GameFrame? next;
+    var players = state.players;
     switch (last) {
       case GameFrameStart _:
         next = GameFrameAddPlayers();
@@ -201,7 +201,7 @@ class GameState {
         next = _allLeavingResultFrame(frame, players) ?? GameFrameNightStart();
         break;
 
-      case GameFrameDayPlayersVotedOut frame:
+      case GameFrameDayPlayersVotedOut _:
         next = GameFrameNightStart();
         break;
 

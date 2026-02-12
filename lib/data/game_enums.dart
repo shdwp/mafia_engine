@@ -48,6 +48,7 @@ extension PlayerListFilters on Iterable<GamePlayer> {
   Iterable<GamePlayer> get killers => where((p) => p.role.isKiller);
 
   Iterable<GamePlayer> whereRole(GameRole role) => where((p) => p.role == role);
+  Iterable<GamePlayer> whereMafia() => where((p) => p.role.isMafia);
   Iterable<GamePlayer> whereAlive() => where((p) => p.alive);
 
   GamePlayer findNextAlive(int index) {

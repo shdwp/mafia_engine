@@ -15,7 +15,7 @@ class GameScreenNightStartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text("Night starts!");
+    return Center(child: Text("🌙", style: TextStyle(fontSize: 72)));
   }
 }
 
@@ -27,7 +27,6 @@ class GameNightRoleActionViewModel
     );
   }
 
-  GameRole get role => current.role;
   Iterable<GamePlayerSelectorViewModel> targetPlayers = List.empty();
   Iterable<GamePlayer> get actionablePlayers => current.role == GameRole.mafia
       ? state.players.where(
@@ -35,13 +34,24 @@ class GameNightRoleActionViewModel
         )
       : state.players.whereRole(current.role);
 
-  bool isBlocked(GamePlayer player) {
-    return state.priestBlockedPlayer == player;
+  bool get isBlocked {
+    var isBlocked = false;
+
+    for (final player in actionablePlayers) {
+      var blockedRole = state.priestBlockedPlayer?.role;
+      if (blockedRole?.isMafia == true) {
+        isBlocked = player.role.isMafia;
+      }
+
+      if (state.priestBlockedPlayer == player) isBlocked = true;
+    }
+
+    return isBlocked;
   }
 
-  void select(int index) {
-    current.index = index;
-	setDirty();
+  void toggleSelect(int index) {
+    current.index = current.index == index ? null : index;
+    setDirty();
   }
 }
 
@@ -51,25 +61,38 @@ class GameScreenNightRoleActionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> actionablePlayerWidgets = [];
-    for (final player in viewModel.actionablePlayers) {
-      actionablePlayerWidgets.add(
-        Text(
-          "#${player.seatName} ${viewModel.isBlocked(player) ? "BLOCKED" : ""}",
-        ),
-      );
-    }
-
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      spacing: 8,
       children: [
-        Text(viewModel.role.toString()),
-        Row(children: actionablePlayerWidgets),
+        GamePlayerListWidget(
+          players: viewModel.actionablePlayers,
+          showRoles: true,
+          vertical: false,
+        ),
+        Visibility(
+          visible: viewModel.isBlocked,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadiusGeometry.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                "BLOCKED",
+                style: TextStyle(fontSize: 36, color: Colors.white),
+              ),
+            ),
+          ),
+        ),
         Expanded(
           child: ListenableBuilder(
             listenable: viewModel,
             builder: (context, child) => GamePlayerSelectorWidget(
               players: viewModel.targetPlayers,
-              onPress: (index) => viewModel.select(index),
+              showRoles: true,
+              onPress: (index) => viewModel.toggleSelect(index),
             ),
           ),
         ),

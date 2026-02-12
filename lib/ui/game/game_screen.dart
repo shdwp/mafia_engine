@@ -101,9 +101,12 @@ class _GameScreenGameState extends State<GameScreen> {
                       ),
                     ),
                     GameResultWidget(result: state.gameResult),
+
+                    /*
                     Text(
                       "${widget.viewModel.current.previous?.id}< C${widget.viewModel.current.id} S${widget.viewModel.state.lastFrame.id} >${widget.viewModel.current.next?.id}",
                     ),
+					*/
                   ],
                 ),
                 Stack(
@@ -323,7 +326,7 @@ class _GameScreenGameState extends State<GameScreen> {
                 break;
             }
 
-            return frameWidget;
+            return Center(child: frameWidget);
           },
         ),
       ),
