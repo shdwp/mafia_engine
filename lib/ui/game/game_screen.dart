@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
+import 'package:mafia_engine/data/game_repository.dart';
 import 'package:mafia_engine/ui/game/game_viewmodel.dart';
+import 'package:mafia_engine/ui/game/game_widgets.dart';
+import 'package:provider/provider.dart';
 
 import 'day/game_day_widgets.dart';
-import 'game_widgets.dart';
+import 'narrator/game_narrator_widgets.dart';
 import 'night/game_night_widgets.dart';
 import 'night/game_zero_night_widgets.dart';
 import 'pre_game/game_pre_game_widgets.dart';
@@ -21,6 +24,184 @@ class _GameScreenGameState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: ListenableBuilder(
+          listenable: widget.viewModel,
+          builder: (context, child) =>
+              Text(widget.viewModel.getInstructionTitle()),
+        ),
+      ),
+      bottomNavigationBar: BottomAppBar(
+        height: 136,
+        shape: CircularNotchedRectangle(),
+        child: ListenableBuilder(
+          listenable: widget.viewModel,
+          builder: (context, child) {
+            final state = widget.viewModel.state;
+            return Column(
+              spacing: 4,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => widget.viewModel.override(),
+                      child: Text("OVRD"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => widget.viewModel.penalize(),
+                      child: Text("PENL"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        var repo = context.read<GameRepository>();
+                        var messenger = ScaffoldMessenger.of(context);
+
+                        var result = await repo.duplicate(
+                          widget.viewModel.current,
+                        );
+                        if (result.isValue) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(result.asValue!.value),
+                              action: SnackBarAction(
+                                label: "Undo",
+                                onPressed: () =>
+                                    repo.undoDuplication(result.asValue!.value),
+                              ),
+                            ),
+                          );
+                        } else {
+                          messenger.showSnackBar(
+                            SnackBar(content: Text("Failed to duplicate!")),
+                          );
+                        }
+                      },
+                      child: Text("SDUP"),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  spacing: 8,
+                  children: [
+                    GamePlayerRoleWidget(
+                      role: GameRole.civilian,
+                      textOverride: state.aliveCivilianCount.toString(),
+                    ),
+                    GamePlayerRoleWidget(
+                      role: GameRole.mafia,
+                      textOverride: state.mafiaCount.toString(),
+                    ),
+                    Visibility(
+                      visible: state.rolesInTheGame.contains(GameRole.killer),
+                      child: GamePlayerRoleWidget(
+                        role: GameRole.killer,
+                        textOverride: state.killerCount.toString(),
+                      ),
+                    ),
+                    GameResultWidget(result: state.gameResult),
+                    Text(
+                      "${widget.viewModel.current.previous?.id}< C${widget.viewModel.current.id} S${widget.viewModel.state.lastFrame.id} >${widget.viewModel.current.next?.id}",
+                    ),
+                  ],
+                ),
+                Stack(
+                  children: [
+                    Container(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton(
+                        onPressed: widget.viewModel.canMoveTop()
+                            ? () => showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text("Confirm setting frame as top:"),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: Text("Cancel"),
+                                    ),
+                                    TextButton(
+                                      style: ButtonStyle(),
+                                      onPressed: () async {
+                                        Navigator.pop(context);
+                                        var result = await context
+                                            .read<GameRepository>()
+                                            .duplicate(
+                                              widget.viewModel.current,
+                                            );
+                                        if (result.isValue) {
+                                          widget.viewModel.setTop();
+                                        }
+                                      },
+                                      child: Text("Duplicate & confirm"),
+                                    ),
+                                    TextButton(
+                                      style: ButtonStyle(
+                                        foregroundColor: WidgetStatePropertyAll(
+                                          Colors.black,
+                                        ),
+                                        backgroundColor: WidgetStatePropertyAll(
+                                          Colors.redAccent,
+                                        ),
+                                      ),
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        widget.viewModel.setTop();
+                                      },
+                                      child: Text("Confirm"),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : null,
+                        child: Text("TOP"),
+                      ),
+                    ),
+
+                    Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        spacing: 8,
+                        children: [
+                          FilledButton(
+                            onPressed: () => widget.viewModel.moveBackward(),
+                            child: Text("<"),
+                          ),
+                          Text(
+                            "${widget.viewModel.currentIndex}/${widget.viewModel.frameCount}",
+                          ),
+                          FilledButton(
+                            onPressed: () => widget.viewModel.moveForward(),
+                            style: ButtonStyle(
+                              backgroundColor: WidgetStatePropertyAll(
+                                widget.viewModel.willMovingCommit()
+                                    ? Colors.redAccent
+                                    : null,
+                              ),
+                            ),
+                            child: Text(">"),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    Container(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: widget.viewModel.canMoveTop()
+                            ? () => widget.viewModel.moveTop()
+                            : null,
+                        child: Text(">>"),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: widget.viewModel,
@@ -30,6 +211,14 @@ class _GameScreenGameState extends State<GameScreen> {
               case GameFrameNarratorPenalize frame:
                 frameWidget = GameScreenNarratorPenalizeWidget(
                   viewModel: GameNarratorPenalizeViewModel(
+                    widget.viewModel,
+                    frame,
+                  ),
+                );
+                break;
+              case GameFrameNarratorStateOverride frame:
+                frameWidget = GameScreenNarratorStateOverrideWidget(
+                  viewModel: GameNarratorStateOverrideViewModel(
                     widget.viewModel,
                     frame,
                   ),
@@ -134,163 +323,9 @@ class _GameScreenGameState extends State<GameScreen> {
                 break;
             }
 
-            final state = widget.viewModel.state;
-            return Column(
-              children: [
-                Expanded(child: frameWidget),
-                Column(
-                  children: [
-                    Text(
-                      "Civ: ${state.aliveCivilianCount}, maf: ${state.mafiaCount}, killer: ${state.killerCount}",
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "[${widget.viewModel.current.previous?.id} => ${widget.viewModel.current.id} ${widget.viewModel.current.isDirty} => ${widget.viewModel.current.next?.id}]",
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "[${widget.viewModel.current.runtimeType.toString()}]",
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () => widget.viewModel.overview(),
-                          child: Text("Overview"),
-                        ),
-                        Text(
-                          widget.viewModel.state.gameResult == GameResult.none
-                              ? ""
-                              : widget.viewModel.state.gameResult.toString(),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => widget.viewModel.penalize(),
-                          child: Text("Penalize"),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () => widget.viewModel.moveBackward(),
-                          child: Text("<"),
-                        ),
-                        Text(
-                          "${widget.viewModel.currentIndex}/${widget.viewModel.frameCount}",
-                        ),
-                        ElevatedButton(
-                          onPressed: () => widget.viewModel.moveTop(),
-                          child: Text(">>"),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => widget.viewModel.moveForward(),
-                          child: Text(">"),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            );
+            return frameWidget;
           },
         ),
-      ),
-    );
-  }
-}
-
-class GameNarratorPenalizeViewModel
-    extends GameFrameViewModel<GameFrameNarratorPenalize> {
-  GameNarratorPenalizeViewModel(super.gameViewModel, super.current) {
-    players = state.players.map(
-      (p) => GamePlayerSelectorViewModel(p, true, current.index == p.index),
-    );
-  }
-
-  Iterable<GamePlayerSelectorViewModel> players = List.empty();
-  String? get currentAmount =>
-      (current.index != null ? state.players[current.index!].penalties : null)
-          .toString();
-
-  void select(int index) {
-    current.index = index;
-    setDirty();
-  }
-
-  void setPenaltyAmount(int amount) {
-    current.amount = amount;
-    setDirty();
-  }
-}
-
-class GameScreenNarratorPenalizeWidget extends StatelessWidget {
-  const GameScreenNarratorPenalizeWidget({super.key, required this.viewModel});
-
-  final GameNarratorPenalizeViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: viewModel,
-      builder: (context, child) => Column(
-        children: [
-          Expanded(
-            child: GamePlayerSelectorWidget(
-              players: viewModel.players,
-              onPress: (index) => viewModel.select(index),
-            ),
-          ),
-          Text(viewModel.currentAmount ?? "No player"),
-          Row(
-            children: [
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(1),
-                child: Text("+1"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(2),
-                child: Text("+2"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(3),
-                child: Text("+3"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(4),
-                child: Text("+4"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(0),
-                child: Text("0"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(-1),
-                child: Text("-1"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(-2),
-                child: Text("-2"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(-3),
-                child: Text("-3"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(-4),
-                child: Text("-4"),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

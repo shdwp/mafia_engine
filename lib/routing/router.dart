@@ -2,7 +2,6 @@ import 'package:go_router/go_router.dart';
 import 'package:mafia_engine/data/game_state.dart';
 import 'package:mafia_engine/routing/routes.dart';
 import 'package:mafia_engine/ui/home/home_screen.dart';
-import 'package:mafia_engine/ui/home/home_viewmodel.dart';
 import 'package:provider/provider.dart';
 
 import '../ui/game/game_screen.dart';

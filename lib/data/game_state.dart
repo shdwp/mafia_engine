@@ -19,6 +19,7 @@ class GameState {
     this.voteMap,
     this.priestBlockedPlayer,
     this.playersUpForVote,
+    this.rolesInTheGame,
   );
 
   final GameFrame rootFrame;
@@ -31,6 +32,7 @@ class GameState {
   final Map<int, List<int>> voteMap;
   final GamePlayer? priestBlockedPlayer;
   final List<GamePlayer?> playersUpForVote;
+  final List<GameRole> rolesInTheGame;
 
   int get aliveCount => players.where((p) => p.alive).length;
   int get aliveCivilianCount => players.civilians.where((p) => p.alive).length;
@@ -40,6 +42,7 @@ class GameState {
   static GameState calculate(GameFrame lastFrame) {
     var players = List<GamePlayer>.empty(growable: true);
     var playersUpForVote = <GamePlayer>[];
+    var rolesInTheGame = <GameRole>[];
     Map<int, List<int>> voteMap = {};
     int? priestTarget;
 
@@ -53,6 +56,7 @@ class GameState {
               (kv) => GamePlayer(kv.$1, kv.$2),
             ),
           );
+          rolesInTheGame = addPlayersFrame.roles;
           break;
 
         case GameFrameAssignRole assignRoleFrame:
@@ -127,6 +131,7 @@ class GameState {
       voteMap,
       priestTarget != null ? players[priestTarget] : null,
       playersUpForVote,
+      rolesInTheGame,
     );
   }
 
@@ -500,6 +505,13 @@ class GameState {
     GameFrame last,
     Iterable<GamePlayer> players,
   ) {
+    switch (last) {
+      case GameFrameStart _:
+      case GameFrameAddPlayers _:
+      case GameFrameAssignRole _:
+        return GameResult.none;
+    }
+
     int playerCount = players.whereAlive().length;
     int killerCount = players.killers.whereAlive().length;
     int mafiaCount = players.mafiosi.whereAlive().length;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
+import 'package:mafia_engine/ui/game/game_widgets.dart';
 
 import '../game_viewmodel.dart';
 
@@ -8,17 +9,22 @@ class GameAssignRoleViewModel extends GameFrameViewModel<GameFrameAssignRole> {
   GameAssignRoleViewModel(super.gameViewModel, super.lastFrame);
 
   GamePlayer get player => state.players[current.index];
-  String get role => "${current.role}";
+  GameRole get role => current.role;
+  Iterable<GameRole> get allRoles => state.rolesInTheGame;
 
   void assign(GameRole role) {
     current.role = role;
     setDirty();
     gameViewModel.moveForward();
   }
+
+  bool showRole(GameRole role) {
+    return state.rolesInTheGame.contains(role);
+  }
 }
 
 class GameScreenAssignRoleWidget extends StatefulWidget {
-  const GameScreenAssignRoleWidget({required this.viewModel});
+  const GameScreenAssignRoleWidget({super.key, required this.viewModel});
   final GameAssignRoleViewModel viewModel;
 
   @override
@@ -30,41 +36,52 @@ class _GameScreenAssignRoleState extends State<GameScreenAssignRoleWidget> {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: widget.viewModel,
-      builder: (context, child) => Column(
-        children: [
-          Text(widget.viewModel.player.seatName),
-          Text(widget.viewModel.player.name),
-          Text(widget.viewModel.role),
-          ElevatedButton(
-            onPressed: () => widget.viewModel.assign(GameRole.civilian),
-            child: Text("Citizen"),
-          ),
-          ElevatedButton(
-            onPressed: () => widget.viewModel.assign(GameRole.mafia),
-            child: Text("Mafia"),
-          ),
-          ElevatedButton(
-            onPressed: () => widget.viewModel.assign(GameRole.don),
-            child: Text("Don"),
-          ),
-          ElevatedButton(
-            onPressed: () => widget.viewModel.assign(GameRole.priest),
-            child: Text("Priest"),
-          ),
-          ElevatedButton(
-            onPressed: () => widget.viewModel.assign(GameRole.sheriff),
-            child: Text("Sheriff"),
-          ),
-          ElevatedButton(
-            onPressed: () => widget.viewModel.assign(GameRole.doctor),
-            child: Text("Doctor"),
-          ),
-          ElevatedButton(
-            onPressed: () => widget.viewModel.assign(GameRole.killer),
-            child: Text("Killer"),
-          ),
-        ],
-      ),
+      builder: (context, child) {
+        var redRoleWidgets = <Widget>[];
+        var blackRoleWidgets = <Widget>[];
+        var otherRoleWidgets = <Widget>[];
+        for (final role in widget.viewModel.allRoles) {
+          var roleWidget = TextButton(
+            onPressed: () => widget.viewModel.assign(role),
+            child: GamePlayerRoleWidget(role: role),
+          );
+
+          if (role.isCivilian) {
+            redRoleWidgets.add(roleWidget);
+          } else if (role.isMafia) {
+            blackRoleWidgets.add(roleWidget);
+          } else {
+            otherRoleWidgets.add(roleWidget);
+          }
+        }
+
+        return Column(
+          children: [
+            Text(widget.viewModel.player.seatName),
+            Text(widget.viewModel.player.name),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text("Current: "),
+                GamePlayerRoleWidget(role: widget.viewModel.role),
+              ],
+            ),
+            Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: redRoleWidgets,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: blackRoleWidgets,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: otherRoleWidgets,
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -79,7 +96,7 @@ class GameZeroNightMeetViewModel
 }
 
 class GameScreenZeroNightMeetWidget extends StatefulWidget {
-  const GameScreenZeroNightMeetWidget({required this.viewModel});
+  const GameScreenZeroNightMeetWidget({super.key, required this.viewModel});
   final GameZeroNightMeetViewModel viewModel;
 
   @override

@@ -3,9 +3,10 @@ import 'package:mafia_engine/data/game_repository.dart';
 import 'package:uuid/uuid.dart';
 
 abstract class GameFrame {
-  GameFrame() : id = Uuid().v4().substring(0, 6);
+  GameFrame() : id = Uuid().v4().substring(0, 6), time = DateTime.now();
   Map<String, dynamic> toJson() => {
     "id": id,
+    "time": time.millisecondsSinceEpoch,
     "type": runtimeType.toString(),
     "previous": previous?.id,
     "next": next?.id,
@@ -13,6 +14,7 @@ abstract class GameFrame {
   };
 
   String id;
+  DateTime time;
   GameFrame? previous;
   GameFrame? next;
 
@@ -22,41 +24,47 @@ abstract class GameFrame {
   bool get isValid => true;
 }
 
-class GameFrameStart extends GameFrame {}
-
-class GameFrameNarratorPenalize extends GameFrame {
-  GameFrameNarratorPenalize();
-  GameFrameNarratorPenalize.fromJson(GameLoadState state)
-    : index = state.get("index"),
-      amount = state.get("amount");
+class GameFrameStart extends GameFrame {
+  GameFrameStart() : gameName = GameRepository.newSaveGameName();
+  GameFrameStart.fromJson(GameLoadState state)
+    : gameName = state.get("gameName");
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"index": index, "amount": amount});
+    dict.addAll({"gameName": gameName});
     return dict;
   }
 
-  @override
-  bool get isDirty => false;
-
-  int? index;
-  int amount = 0;
+  String gameName;
 }
 
 class GameFrameAddPlayers extends GameFrame {
   GameFrameAddPlayers();
   GameFrameAddPlayers.fromJson(GameLoadState state)
-    : players = state.getList("players");
+    : players = state.getList("players"),
+      roles = state
+          .getList("roles")
+          .map((e) => GameRole.values.byName(e))
+          .toList();
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"players": players});
+    dict.addAll({
+      "players": players,
+      "roles": roles.map((e) => e.name).toList(),
+    });
     return dict;
   }
 
-  List<String> players = List.filled(10, "Unnamed", growable: true);
+  List<String> players = List.filled(10, "", growable: true);
+  List<GameRole> roles = <GameRole>[
+    GameRole.civilian,
+    GameRole.mafia,
+    GameRole.don,
+    GameRole.sheriff,
+  ];
 }
 
 class GameFrameAssignRole extends GameFrame {
@@ -239,4 +247,63 @@ class GameFrameNightRoleAction extends GameFrame {
 
   final GameRole role;
   int? index;
+}
+
+enum GameFrameNarratorStateOverrideType { dayStart, nightStart }
+
+class GameFrameNarratorStateOverride extends GameFrame {
+  GameFrameNarratorStateOverride(this.type, this.players);
+  GameFrameNarratorStateOverride.fromJson(GameLoadState state)
+    : type = GameFrameNarratorStateOverrideType.values.byName(
+        state.get("overrideType"),
+      ) {
+    var list = List<(String, GameRole, bool, int)>.empty(growable: true);
+    for (var i = 0; i < state.get<int>("playerCount"); i++) {
+      var key = "player_$i";
+      list.add((
+        state.get("${key}_name"),
+        GameRole.values.byName(state.get("${key}_role")),
+        state.get("${key}_alive"),
+        state.get("${key}_penalties"),
+      ));
+    }
+
+    players = list;
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    var dict = super.toJson();
+    dict.addAll({"overrideType": type.name, "playerCount": players.length});
+    for (final kv in players.indexed) {
+      dict["player_${kv.$1}_name"] = kv.$2.$1;
+      dict["player_${kv.$1}_role"] = kv.$2.$2.name;
+      dict["player_${kv.$1}_alive"] = kv.$2.$3;
+      dict["player_${kv.$1}_penalties"] = kv.$2.$4;
+    }
+    return dict;
+  }
+
+  final GameFrameNarratorStateOverrideType type;
+  late final List<(String, GameRole, bool, int)> players;
+}
+
+class GameFrameNarratorPenalize extends GameFrame {
+  GameFrameNarratorPenalize();
+  GameFrameNarratorPenalize.fromJson(GameLoadState state)
+    : index = state.get("index"),
+      amount = state.get("amount");
+
+  @override
+  Map<String, dynamic> toJson() {
+    var dict = super.toJson();
+    dict.addAll({"index": index, "amount": amount});
+    return dict;
+  }
+
+  @override
+  bool get isDirty => false;
+
+  int? index;
+  int amount = 0;
 }

@@ -96,11 +96,15 @@ class GamePlayer {
   @override
   int get hashCode => index;
 
-  String get seatName => (index + 1).toString();
+  String get seatName => seatNameFromIndex(index);
 
   int index;
   String name;
   GameRole role;
   bool alive;
   int penalties;
+
+  static String seatNameFromIndex(int index) {
+    return (index + 1).toString();
+  }
 }

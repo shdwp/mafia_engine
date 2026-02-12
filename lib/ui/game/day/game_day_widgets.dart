@@ -29,7 +29,8 @@ class GameDaySpeechViewModel extends GameFrameViewModel<GameFrameDaySpeech> {
     players = state.players.map(
       (p) => GamePlayerSelectorViewModel(
         p,
-        p.alive,
+        p.index == current.putUpForVoteIndex ||
+            (p.alive && !state.playersUpForVote.contains(p)),
         p.index == current.putUpForVoteIndex,
       ),
     );
