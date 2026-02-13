@@ -20,192 +20,287 @@ class GameScreen extends StatefulWidget {
   State<StatefulWidget> createState() => _GameScreenGameState();
 }
 
-class _GameScreenGameState extends State<GameScreen> {
+class _GameScreenGameState extends State<GameScreen>
+    with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomSheet: BottomSheet(
+        onClosing: () {},
+        animationController: AnimationController(
+          vsync: this,
+          duration: Duration(seconds: 1),
+        ),
+        enableDrag: true,
+        showDragHandle: true,
+        builder: (context) {
+          return IntrinsicHeight(
+            child: ListenableBuilder(
+              listenable: widget.viewModel,
+              builder: (context, child) {
+                final state = widget.viewModel.state;
+                return Column(
+                  spacing: 4,
+                  children: [
+                    Stack(
+                      children: [
+                        Container(
+                          alignment: Alignment.center,
+                          child: TextButton(
+                            onPressed: () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (context) => FractionallySizedBox(
+                                heightFactor: 0.8,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Column(
+                                    spacing: 16,
+                                    children: [
+                                      GameResultWidget(
+                                        result: state.gameResult,
+                                      ),
+                                      GamePlayerCountersWidget(
+                                        state: widget.viewModel.state,
+                                      ),
+                                      Expanded(
+                                        child: GamePlayerSelectorWidget(
+                                          players: widget
+                                              .viewModel
+                                              .state
+                                              .players
+                                              .map(
+                                                (p) =>
+                                                    GamePlayerSelectorViewModel(
+                                                      p,
+                                                    ),
+                                              ),
+                                          showRoles: true,
+                                          onPress: null,
+                                        ),
+                                      ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        spacing: 16,
+                                        children: [
+                                          FilledButton(
+                                            onPressed: () =>
+                                                GameUILib.confirmDialogWithDuplicationOption(
+                                                  context,
+                                                  widget.viewModel.current,
+                                                  () => widget.viewModel
+                                                      .override(),
+                                                ),
+                                            child: Text("Override"),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                GameUILib.confirmDialogWithDuplicationOption(
+                                                  context,
+                                                  widget.viewModel.current,
+                                                  () => widget.viewModel
+                                                      .penalize(),
+                                                ),
+                                            child: Text("Penalize"),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            child: GamePlayerCountersWidget(
+                              state: widget.viewModel.state,
+                            ),
+                          ),
+                        ),
+
+                        Container(
+                          alignment: Alignment.centerLeft,
+                          child: GameResultWidget(result: state.gameResult),
+                        ),
+
+                        Visibility(
+                          visible: widget.viewModel.voteOn.isNotEmpty,
+                          child: Container(
+                            alignment: Alignment.centerRight,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.grey,
+                                borderRadius: BorderRadiusGeometry.circular(20),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(widget.viewModel.voteOn),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        /*
+                      Text(
+                        "${widget.viewModel.current.previous?.id}< C${widget.viewModel.current.id} S${widget.viewModel.state.lastFrame.id} >${widget.viewModel.current.next?.id}",
+                      ),
+            					*/
+                      ],
+                    ),
+                    Stack(
+                      children: [
+                        Container(
+                          alignment: Alignment.centerLeft,
+                          child: FilledButton(
+                            onPressed: widget.viewModel.canMoveTop()
+                                ? () =>
+                                      GameUILib.confirmDialogWithDuplicationOption(
+                                        context,
+                                        widget.viewModel.current,
+                                        () => widget.viewModel.setTop(),
+                                      )
+                                : null,
+                            child: Text("TOP"),
+                          ),
+                        ),
+
+                        Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            spacing: 8,
+                            children: [
+                              FilledButton(
+                                onPressed: () =>
+                                    widget.viewModel.moveBackward(),
+                                child: Text("<"),
+                              ),
+                              Text(
+                                "${widget.viewModel.currentIndex}/${widget.viewModel.frameCount}",
+                              ),
+                              FilledButton(
+                                onPressed: () => widget.viewModel.moveForward(),
+                                style: ButtonStyle(
+                                  backgroundColor: WidgetStatePropertyAll(
+                                    widget.viewModel.willMovingCommit()
+                                        ? Colors.redAccent
+                                        : null,
+                                  ),
+                                ),
+                                child: Text(">"),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Container(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton(
+                            onPressed: widget.viewModel.canMoveTop()
+                                ? () => widget.viewModel.moveTop()
+                                : null,
+                            child: Text(">>"),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      spacing: 16,
+                      children: [
+                        SizedBox(
+                          height: 400,
+                          child: GamePlayerSelectorWidget(
+                            players: widget.viewModel.state.players.map(
+                              (p) => GamePlayerSelectorViewModel(p),
+                            ),
+                            showRoles: true,
+                            onPress: null,
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          spacing: 16,
+                          children: [
+                            FilledButton(
+                              onPressed: () =>
+                                  GameUILib.confirmDialogWithDuplicationOption(
+                                    context,
+                                    widget.viewModel.current,
+                                    () => widget.viewModel.override(),
+                                  ),
+                              child: Text("Override"),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  GameUILib.confirmDialogWithDuplicationOption(
+                                    context,
+                                    widget.viewModel.current,
+                                    () => widget.viewModel.penalize(),
+                                  ),
+                              child: Text("Penalize"),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+        },
+      ),
       appBar: AppBar(
         title: ListenableBuilder(
           listenable: widget.viewModel,
           builder: (context, child) =>
               Text(widget.viewModel.getInstructionTitle()),
         ),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        height: 136,
-        shape: CircularNotchedRectangle(),
-        child: ListenableBuilder(
-          listenable: widget.viewModel,
-          builder: (context, child) {
-            final state = widget.viewModel.state;
-            return Column(
-              spacing: 4,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => widget.viewModel.override(),
-                      child: Text("OVRD"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => widget.viewModel.penalize(),
-                      child: Text("PENL"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        var repo = context.read<GameRepository>();
-                        var messenger = ScaffoldMessenger.of(context);
+        actions: [
+          MenuAnchor(
+            menuChildren: [
+              MenuItemButton(
+                onPressed: () async {
+                  var repo = context.read<GameRepository>();
+                  var messenger = ScaffoldMessenger.of(context);
 
-                        var result = await repo.duplicate(
-                          widget.viewModel.current,
-                        );
-                        if (result.isValue) {
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(result.asValue!.value),
-                              action: SnackBarAction(
-                                label: "Undo",
-                                onPressed: () =>
-                                    repo.undoDuplication(result.asValue!.value),
-                              ),
-                            ),
-                          );
-                        } else {
-                          messenger.showSnackBar(
-                            SnackBar(content: Text("Failed to duplicate!")),
-                          );
-                        }
-                      },
-                      child: Text("SDUP"),
-                    ),
+                  var result = await repo.duplicate(widget.viewModel.current);
+                  if (result.isValue) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(result.asValue!.value),
+                        action: SnackBarAction(
+                          label: "Undo",
+                          onPressed: () =>
+                              repo.undoDuplication(result.asValue!.value),
+                        ),
+                      ),
+                    );
+                  } else {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text("Failed to duplicate!")),
+                    );
+                  }
+                },
+                child: Row(
+                  children: [
+                    Icon(Icons.fork_right),
+                    Text("Duplicate game save"),
                   ],
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  spacing: 8,
-                  children: [
-                    GamePlayerRoleWidget(
-                      role: GameRole.civilian,
-                      textOverride: state.aliveCivilianCount.toString(),
-                    ),
-                    GamePlayerRoleWidget(
-                      role: GameRole.mafia,
-                      textOverride: state.mafiaCount.toString(),
-                    ),
-                    Visibility(
-                      visible: state.rolesInTheGame.contains(GameRole.killer),
-                      child: GamePlayerRoleWidget(
-                        role: GameRole.killer,
-                        textOverride: state.killerCount.toString(),
-                      ),
-                    ),
-                    GameResultWidget(result: state.gameResult),
-
-                    /*
-                    Text(
-                      "${widget.viewModel.current.previous?.id}< C${widget.viewModel.current.id} S${widget.viewModel.state.lastFrame.id} >${widget.viewModel.current.next?.id}",
-                    ),
-					*/
-                  ],
-                ),
-                Stack(
-                  children: [
-                    Container(
-                      alignment: Alignment.centerLeft,
-                      child: FilledButton(
-                        onPressed: widget.viewModel.canMoveTop()
-                            ? () => showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: Text("Confirm setting frame as top:"),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: Text("Cancel"),
-                                    ),
-                                    TextButton(
-                                      style: ButtonStyle(),
-                                      onPressed: () async {
-                                        Navigator.pop(context);
-                                        var result = await context
-                                            .read<GameRepository>()
-                                            .duplicate(
-                                              widget.viewModel.current,
-                                            );
-                                        if (result.isValue) {
-                                          widget.viewModel.setTop();
-                                        }
-                                      },
-                                      child: Text("Duplicate & confirm"),
-                                    ),
-                                    TextButton(
-                                      style: ButtonStyle(
-                                        foregroundColor: WidgetStatePropertyAll(
-                                          Colors.black,
-                                        ),
-                                        backgroundColor: WidgetStatePropertyAll(
-                                          Colors.redAccent,
-                                        ),
-                                      ),
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                        widget.viewModel.setTop();
-                                      },
-                                      child: Text("Confirm"),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : null,
-                        child: Text("TOP"),
-                      ),
-                    ),
-
-                    Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        spacing: 8,
-                        children: [
-                          FilledButton(
-                            onPressed: () => widget.viewModel.moveBackward(),
-                            child: Text("<"),
-                          ),
-                          Text(
-                            "${widget.viewModel.currentIndex}/${widget.viewModel.frameCount}",
-                          ),
-                          FilledButton(
-                            onPressed: () => widget.viewModel.moveForward(),
-                            style: ButtonStyle(
-                              backgroundColor: WidgetStatePropertyAll(
-                                widget.viewModel.willMovingCommit()
-                                    ? Colors.redAccent
-                                    : null,
-                              ),
-                            ),
-                            child: Text(">"),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Container(
-                      alignment: Alignment.centerRight,
-                      child: FilledButton(
-                        onPressed: widget.viewModel.canMoveTop()
-                            ? () => widget.viewModel.moveTop()
-                            : null,
-                        child: Text(">>"),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
+              ),
+            ],
+            builder: (context, controller, child) => IconButton(
+              icon: Icon(Icons.menu),
+              onPressed: () =>
+                  controller.isOpen ? controller.close() : controller.open(),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
+        top: true,
+        bottom: true,
+        left: true,
+        right: true,
         child: ListenableBuilder(
           listenable: widget.viewModel,
           builder: (context, child) {

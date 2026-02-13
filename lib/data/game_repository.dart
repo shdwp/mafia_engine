@@ -163,7 +163,7 @@ class GameRepository {
     frame.next!.previous = frame;
 
     _saveTree(frame);
-    return Result.value(state);
+    return Result.value(GameState.calculate(frame.next!));
   }
 
   bool willCommitOverwriteHistory(GameFrame frame) {

@@ -24,6 +24,8 @@ class GameViewModel extends ChangeNotifier {
   int get currentIndex => state.frameIndex + (current.isDirty ? 1 : 0);
   int get frameCount => state.frameCount + 1;
 
+  String get voteOn => state.playersUpForVote.map((p) => p.seatName).join(", ");
+
   String getInstructionTitle() {
     switch (current) {
       case GameFrameStart _:
@@ -54,7 +56,7 @@ class GameViewModel extends ChangeNotifier {
       case GameFrameDayVoteOnPlayerLeaving _:
         return "Voting for player leaving";
       case GameFrameDayVoteOnAllLeaving _:
-        return "Voting for both leaving";
+        return "Voting for all leaving";
       case GameFrameDayPlayersVotedOut _:
         return "Voted-out farewell speech";
       case GameFrameNightStart _:

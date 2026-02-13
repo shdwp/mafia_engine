@@ -29,7 +29,7 @@ class GameState {
   final List<GamePlayer> players;
   final Map<int, List<int>> voteMap;
   final GamePlayer? priestBlockedPlayer;
-  final List<GamePlayer?> playersUpForVote;
+  final List<GamePlayer> playersUpForVote;
   final List<GameRole> rolesInTheGame;
 
   int get aliveCount => players.where((p) => p.alive).length;
@@ -37,7 +37,7 @@ class GameState {
   int get mafiaCount => players.mafiosi.where((p) => p.alive).length;
   int get killerCount => players.killers.where((p) => p.alive).length;
 
-  static GameState calculate(GameFrame lastFrame, { bool ignoreLast = true }) {
+  static GameState calculate(GameFrame lastFrame, {bool ignoreLast = true}) {
     var players = List<GamePlayer>.empty(growable: true);
     var playersUpForVote = <GamePlayer>[];
     var rolesInTheGame = <GameRole>[];
@@ -47,35 +47,55 @@ class GameState {
     var rootFrame = lastFrame.findFirst();
     GameFrame? frame = rootFrame;
     while (frame != null) {
+      if (!ignoreLast || frame != lastFrame) {
+        switch (frame) {
+          case GameFrameAddPlayers addPlayersFrame:
+            players.addAll(
+              addPlayersFrame.players.indexed.map(
+                (kv) => GamePlayer(kv.$1, kv.$2),
+              ),
+            );
+            rolesInTheGame = addPlayersFrame.roles;
+            break;
+
+          case GameFrameAssignRole assignRoleFrame:
+            players[assignRoleFrame.index].role = assignRoleFrame.role;
+            break;
+
+          case GameFrameDaySpeech frame:
+            if (frame.putUpForVoteIndex != null) {
+              playersUpForVote.add(players[frame.putUpForVoteIndex!]);
+            }
+            break;
+
+          case GameFrameDayVotingStart _:
+            voteMap.clear();
+            break;
+
+          case GameFrameDayVoteOnPlayerLeaving voteFrame:
+            voteMap[voteFrame.playerToVoteFor] = voteFrame.votes;
+            break;
+
+          case GameFrameDayVoteOnAllLeaving voteFrame:
+            voteMap[-1] = voteFrame.votes;
+            break;
+
+          case GameFrameNightStart _:
+            priestTarget = null;
+            playersUpForVote.clear();
+            break;
+
+          case GameFrameNightRoleAction frame:
+            if (frame.role == GameRole.priest) {
+              priestTarget = frame.index;
+            }
+            break;
+        }
+      }
+
       switch (frame) {
-        case GameFrameAddPlayers addPlayersFrame:
-          players.addAll(
-            addPlayersFrame.players.indexed.map(
-              (kv) => GamePlayer(kv.$1, kv.$2),
-            ),
-          );
-          rolesInTheGame = addPlayersFrame.roles;
-          break;
-
-        case GameFrameAssignRole assignRoleFrame:
-          players[assignRoleFrame.index].role = assignRoleFrame.role;
-          break;
-
-        case GameFrameDaySpeech frame:
-          if (frame.putUpForVoteIndex != null) {
-            playersUpForVote.add(players[frame.putUpForVoteIndex!]);
-          }
-          break;
-
-        case GameFrameDayVotingStart _:
-          voteMap.clear();
-          break;
-
-        case GameFrameDayPlayersVotedOut votedOutFrame:
-          for (final index in votedOutFrame.playersVotedOut) {
-            final player = players[index];
-            player.alive = false;
-          }
+        case GameFrameDayFarewellSpeech frame:
+          players[frame.index].alive = false;
           break;
 
         case GameFrameNarratorPenalize penaltyFrame:
@@ -87,35 +107,33 @@ class GameState {
           }
           break;
 
-        case GameFrameDayVoteOnPlayerLeaving voteFrame:
-          voteMap[voteFrame.playerToVoteFor] = voteFrame.votes;
-          break;
-
-        case GameFrameDayVoteOnAllLeaving voteFrame:
-          voteMap[-1] = voteFrame.votes;
-          break;
-
-        case GameFrameNightStart _:
-          priestTarget = null;
-          playersUpForVote.clear();
-          break;
-
-        case GameFrameNightRoleAction frame:
-          if (frame.role == GameRole.priest) {
-            priestTarget = frame.index;
+        case GameFrameDayPlayersVotedOut votedOutFrame:
+          for (final index in votedOutFrame.playersVotedOut) {
+            final player = players[index];
+            player.alive = false;
           }
           break;
 
-        case GameFrameDayFarewellSpeech frame:
-          players[frame.index].alive = false;
+        case GameFrameNarratorStateOverride frame:
+          players.clear();
+          rolesInTheGame.clear();
+          playersUpForVote.clear();
+          voteMap.clear();
+          for (final kv in frame.players.indexed) {
+            var model = GamePlayer(kv.$1, kv.$2.$1);
+            model.role = kv.$2.$2;
+            model.penalties = kv.$2.$4;
+            model.alive = kv.$2.$3;
+            players.add(model);
+
+            if (!rolesInTheGame.contains(model.role)) {
+              rolesInTheGame.add(model.role);
+            }
+          }
           break;
       }
 
-      if (!ignoreLast) {
-        if (frame == lastFrame) break;
-      } else {
-        if (frame == lastFrame.previous) break;
-      }
+      if (frame == lastFrame) break;
       frame = frame.next;
     }
 
@@ -224,6 +242,12 @@ class GameState {
             _nextFarewellFrame(frame, players) ??
             _firstDayFrame(frame, players);
         break;
+
+      case GameFrameNarratorStateOverride frame:
+        next = frame.type == GameFrameNarratorStateOverrideType.dayStart
+            ? _firstDayFrame(frame, players)
+            : GameFrameNightStart();
+        break;
     }
 
     if (next == null) return null;
@@ -232,15 +256,25 @@ class GameState {
   }
 
   static GameFrame _firstDayFrame(GameFrame frame, List<GamePlayer> players) {
+    final lastOverride = frame.firstBackwards<GameFrameNarratorStateOverride>();
     final lastFirstSpeechFrame = frame.findBackwards<GameFrameDaySpeech>(
       (f) => f.dayOpening,
     );
 
-    if (lastFirstSpeechFrame == null) {
-      return GameFrameDaySpeech(players.first.index, true);
-    } else {
+    if (lastOverride?.firstToTalk != null && lastFirstSpeechFrame != null) {
+      if (lastOverride!.time.compareTo(lastFirstSpeechFrame.time) > 0) {
+        return GameFrameDaySpeech(lastOverride.firstToTalk!, true);
+      } else {
+        var nextPlayer = players.findNextAlive(lastFirstSpeechFrame.index);
+        return GameFrameDaySpeech(nextPlayer.index, true);
+      }
+    } else if (lastOverride?.firstToTalk != null) {
+      return GameFrameDaySpeech(lastOverride!.firstToTalk!, true);
+    } else if (lastFirstSpeechFrame != null) {
       var nextPlayer = players.findNextAlive(lastFirstSpeechFrame.index);
       return GameFrameDaySpeech(nextPlayer.index, true);
+    } else {
+      return GameFrameDaySpeech(players.first.index, true);
     }
   }
 

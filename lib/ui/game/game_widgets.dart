@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mafia_engine/data/game_enums.dart';
+import 'package:mafia_engine/data/game_frame.dart';
+import 'package:mafia_engine/data/game_repository.dart';
+import 'package:mafia_engine/data/game_state.dart';
 import 'package:mafia_engine/data/game_timer.dart';
 import 'package:provider/provider.dart';
 
@@ -13,12 +16,15 @@ class GameUIRoleViewModel {
 
 class GameUILib {
   static String formatSeatName(GamePlayer player) =>
-      "${deadPrefix(player)}${player.seatName}";
+      "${player.seatName}${deadSuffix(player)}";
   static String formatPlayerName(GamePlayer player) => player.name;
   static String formatFullPlayerName(GamePlayer player) =>
       "${formatSeatName(player)} ${formatPlayerName(player)}";
 
-  static String deadPrefix(GamePlayer player) => player.alive ? "" : "💀 ";
+  static String deadPrefix(GamePlayer player) => player.alive ? "" : "$deadSymbol ";
+  static String deadSuffix(GamePlayer player) => player.alive ? "" : " $deadSymbol";
+
+  static String deadSymbol = "💀";
 
   static GameUIRoleViewModel roleViewModel(GameRole role) {
     String name;
@@ -68,36 +74,88 @@ class GameUILib {
 
     return GameUIRoleViewModel(name, foreground, background);
   }
+
+  static void confirmDialogWithDuplicationOption(
+    BuildContext context,
+    GameFrame current,
+    Function callback,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Confirm:"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel"),
+          ),
+          TextButton(
+            style: ButtonStyle(),
+            onPressed: () async {
+              Navigator.pop(context);
+              var result = await context.read<GameRepository>().duplicate(
+                current,
+              );
+
+              if (result.isValue) {
+                callback();
+              }
+            },
+            child: Text("Duplicate & confirm"),
+          ),
+          TextButton(
+            style: ButtonStyle(
+              foregroundColor: WidgetStatePropertyAll(Colors.black),
+              backgroundColor: WidgetStatePropertyAll(Colors.redAccent),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              callback();
+            },
+            child: Text("Confirm"),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class GamePlayerSelectorViewModel {
-  GamePlayerSelectorViewModel(this.player, this.available, this.selected);
+  GamePlayerSelectorViewModel(
+    this.player, {
+    this.available = true,
+    this.selected = false,
+    this.highlighted = false,
+  });
 
   final GamePlayer player;
   bool available;
   bool selected;
+  bool highlighted;
 }
 
 class GamePlayerSelectorWidget extends StatelessWidget {
   const GamePlayerSelectorWidget({
     super.key,
     required this.players,
-    required this.onPress,
+    this.onPress,
     this.showRoles = false,
   });
 
   final Iterable<GamePlayerSelectorViewModel> players;
-  final Function(int index) onPress;
+  final Function(int index)? onPress;
   final bool showRoles;
 
   @override
   Widget build(BuildContext context) {
     return GridView.count(
       padding: EdgeInsetsGeometry.all(8),
-      crossAxisCount: 5,
+      crossAxisCount: 4,
       children: List.generate(players.length, (index) {
         final element = players.elementAt(index);
-        final onPressed = !element.available ? null : () => onPress(index);
+        final onPressed = !element.available || onPress == null
+            ? null
+            : () => onPress!(index);
         final String text = GameUILib.formatSeatName(element.player);
 
         Widget child;
@@ -105,30 +163,55 @@ class GamePlayerSelectorWidget extends StatelessWidget {
           child = Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                GameUILib.deadPrefix(element.player).trim(),
-                style: TextStyle(fontSize: 24),
-              ),
               GamePlayerRoleWidget(
                 role: element.player.role,
                 textOverride: element.player.seatName,
-                fontSize: 24,
+                fontSize: 21,
+              ),
+              Text(
+                GameUILib.deadPrefix(element.player).trim(),
+                style: TextStyle(fontSize: 21),
               ),
             ],
           );
         } else {
-          child = Text(text, style: TextStyle(fontSize: 24));
+          child = Text(
+            text,
+            style: TextStyle(fontSize: 21),
+            softWrap: false,
+            overflow: TextOverflow.fade,
+          );
         }
 
         child = Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [child, Text(GameUILib.formatPlayerName(element.player))],
+          children: [
+            child,
+            Text(
+              GameUILib.formatPlayerName(element.player),
+              softWrap: false,
+              overflow: TextOverflow.fade,
+              style: TextStyle(
+                decoration: element.player.alive
+                    ? TextDecoration.none
+                    : TextDecoration.lineThrough,
+              ),
+            ),
+          ],
         );
 
         if (element.selected) {
           return FilledButton(onPressed: onPressed, child: child);
         } else {
-          return ElevatedButton(onPressed: onPressed, child: child);
+          return ElevatedButton(
+            onPressed: onPressed,
+            style: ButtonStyle(
+              backgroundColor: WidgetStatePropertyAll(
+                element.highlighted ? Colors.lightGreenAccent : null,
+              ),
+            ),
+            child: child,
+          );
         }
       }),
     );
@@ -285,8 +368,9 @@ class GamePlayerBadgeWidget extends StatelessWidget {
         padding: EdgeInsets.all(8.0),
         child: Text(
           GameUILib.formatFullPlayerName(player),
+          overflow: TextOverflow.fade,
           style: TextStyle(
-            fontSize: 21,
+            fontSize: 18,
             color: !showRole ? Colors.white : roleViewModel.foreground,
           ),
         ),
@@ -312,7 +396,7 @@ class _GameTimerState extends State<GameTimerWidget> {
       listenable: timerService.notifier,
       builder: (context, child) => Row(
         mainAxisSize: MainAxisSize.min,
-        spacing: 16,
+        spacing: 8,
         children: [
           IconButton.filled(
             onPressed: timerService.hasTimer
@@ -375,5 +459,40 @@ class GamePlayerListWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: playerWidgets,
           );
+  }
+}
+
+class GamePlayerCountersWidget extends StatelessWidget {
+  final GameState state;
+
+  const GamePlayerCountersWidget({super.key, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      spacing: 8,
+      children: [
+        GamePlayerRoleWidget(
+          role: GameRole.civilian,
+          textOverride: state.aliveCivilianCount.toString(),
+        ),
+        GamePlayerRoleWidget(
+          role: GameRole.mafia,
+          textOverride: state.mafiaCount.toString(),
+        ),
+        Visibility(
+          visible: state.rolesInTheGame.contains(GameRole.killer),
+          child: GamePlayerRoleWidget(
+            role: GameRole.killer,
+            textOverride: state.killerCount.toString(),
+          ),
+        ),
+        GamePlayerRoleWidget(
+          role: GameRole.none,
+          textOverride: state.aliveCount.toString(),
+        ),
+      ],
+    );
   }
 }

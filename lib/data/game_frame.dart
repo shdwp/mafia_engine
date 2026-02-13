@@ -256,7 +256,8 @@ class GameFrameNarratorStateOverride extends GameFrame {
   GameFrameNarratorStateOverride.fromJson(GameLoadState state)
     : type = GameFrameNarratorStateOverrideType.values.byName(
         state.get("overrideType"),
-      ) {
+      ),
+      firstToTalk = state.get("firstToTalk") {
     var list = List<(String, GameRole, bool, int)>.empty(growable: true);
     for (var i = 0; i < state.get<int>("playerCount"); i++) {
       var key = "player_$i";
@@ -274,7 +275,11 @@ class GameFrameNarratorStateOverride extends GameFrame {
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"overrideType": type.name, "playerCount": players.length});
+    dict.addAll({
+      "overrideType": type.name,
+      "firstToTalk": firstToTalk,
+      "playerCount": players.length,
+    });
     for (final kv in players.indexed) {
       dict["player_${kv.$1}_name"] = kv.$2.$1;
       dict["player_${kv.$1}_role"] = kv.$2.$2.name;
@@ -284,7 +289,8 @@ class GameFrameNarratorStateOverride extends GameFrame {
     return dict;
   }
 
-  final GameFrameNarratorStateOverrideType type;
+  GameFrameNarratorStateOverrideType type;
+  int? firstToTalk;
   late final List<(String, GameRole, bool, int)> players;
 }
 

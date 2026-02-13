@@ -7,15 +7,14 @@ import 'package:mafia_engine/ui/game/game_widgets.dart';
 class GameNarratorStateOverrideViewModel
     extends GameFrameViewModel<GameFrameNarratorStateOverride> {
   GameNarratorStateOverrideViewModel(super.gameViewModel, super.current)
-    : type = GameFrameNarratorStateOverrideType.dayStart,
-      roles = gameViewModel.state.rolesInTheGame;
+    : roles = gameViewModel.state.rolesInTheGame;
 
-  GameFrameNarratorStateOverrideType type;
   List<GameRole> roles;
 
   void setAlive(int index, bool alive) {
     var player = current.players[index];
     current.players[index] = (player.$1, player.$2, alive, player.$4);
+    setDirty();
   }
 
   GameRole getRole(int index) => current.players[index].$2;
@@ -31,6 +30,16 @@ class GameNarratorStateOverrideViewModel
     current.players[index] = (player.$1, role, player.$3, player.$4);
     setDirty();
   }
+
+  void setType(GameFrameNarratorStateOverrideType? type) {
+    current.type = type ?? GameFrameNarratorStateOverrideType.dayStart;
+    setDirty();
+  }
+
+  void setFirstToTalk(int index) {
+    current.firstToTalk = index;
+    setDirty();
+  }
 }
 
 class GameScreenNarratorStateOverrideWidget extends StatelessWidget {
@@ -43,19 +52,76 @@ class GameScreenNarratorStateOverrideWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var options = <int>[];
+    for (int i = 0; i < viewModel.state.players.length; i++) {
+      options.add(i);
+    }
+
     return ListenableBuilder(
       listenable: viewModel,
       builder: (context, child) => Column(
         children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 8,
+            children: [
+              Text("Start:"),
+              SegmentedButton(
+                segments: [
+                  ButtonSegment<GameFrameNarratorStateOverrideType>(
+                    value: GameFrameNarratorStateOverrideType.dayStart,
+                    icon: Icon(Icons.sunny),
+                  ),
+                  ButtonSegment<GameFrameNarratorStateOverrideType>(
+                    value: GameFrameNarratorStateOverrideType.nightStart,
+                    icon: Icon(Icons.mode_night),
+                  ),
+                ],
+                selected: {viewModel.current.type},
+                onSelectionChanged: (value) =>
+                    viewModel.setType(value.firstOrNull),
+              ),
+              Text("Next talk:"),
+              DropdownButton(
+                items: options.map((index) {
+                  return DropdownMenuItem(
+                    value: index,
+                    child: Text(GamePlayer.seatNameFromIndex(index)),
+                  );
+                }).toList(),
+                value: viewModel.current.firstToTalk,
+                onChanged: (value) {
+                  if (value != null) viewModel.setFirstToTalk(value);
+                },
+              ),
+            ],
+          ),
           Expanded(
-            child: ListView.builder(
-              padding: EdgeInsetsGeometry.all(10),
+            child: ListView.separated(
+              padding: EdgeInsetsGeometry.all(8),
+              itemCount: viewModel.current.players.length,
+              separatorBuilder: (context, index) => Divider(),
               itemBuilder: (context, index) {
+                var player = viewModel.current.players[index];
+                var decoration = player.$3 ? null : TextDecoration.lineThrough;
+                var seatName =
+                    "${GamePlayer.seatNameFromIndex(index)}${!player.$3 ? GameUILib.deadSymbol : ""}";
+
                 return Row(
-                  spacing: 10,
+                  spacing: 16,
                   children: [
-                    Text(GamePlayer.seatNameFromIndex(index)),
-                    Text(viewModel.current.players[index].$1),
+                    Text(seatName),
+                    Expanded(
+                      child: Text(
+                        player.$1,
+                        style: TextStyle(decoration: decoration),
+                      ),
+                    ),
+                    Checkbox(
+                      value: player.$3,
+                      onChanged: (value) =>
+                          viewModel.setAlive(index, value ?? true),
+                    ),
                     IconButton(
                       onPressed: () => viewModel.cycleRole(index),
                       icon: GamePlayerRoleWidget(
@@ -65,7 +131,6 @@ class GameScreenNarratorStateOverrideWidget extends StatelessWidget {
                   ],
                 );
               },
-              itemCount: viewModel.current.players.length,
             ),
           ),
         ],
@@ -78,7 +143,11 @@ class GameNarratorPenalizeViewModel
     extends GameFrameViewModel<GameFrameNarratorPenalize> {
   GameNarratorPenalizeViewModel(super.gameViewModel, super.current) {
     players = state.players.map(
-      (p) => GamePlayerSelectorViewModel(p, true, current.index == p.index),
+      (p) => GamePlayerSelectorViewModel(
+        p,
+        available: true,
+        selected: current.index == p.index,
+      ),
     );
   }
 
@@ -92,8 +161,8 @@ class GameNarratorPenalizeViewModel
     setDirty();
   }
 
-  void setPenaltyAmount(int amount) {
-    current.amount = amount;
+  void adjustPenalty(int amount) {
+    current.amount += amount;
     setDirty();
   }
 }
@@ -115,44 +184,21 @@ class GameScreenNarratorPenalizeWidget extends StatelessWidget {
               onPress: (index) => viewModel.select(index),
             ),
           ),
-          Text(viewModel.currentAmount ?? "No player"),
+          Text(
+            viewModel.currentAmount != null
+                ? "Current penaties: ${viewModel.currentAmount!}"
+                : "Player not selected",
+            style: TextStyle(fontSize: 18),
+          ),
           Row(
             children: [
               ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(1),
-                child: Text("+1"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(2),
-                child: Text("+2"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(3),
-                child: Text("+3"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(4),
-                child: Text("+4"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(0),
-                child: Text("0"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(-1),
+                onPressed: () => viewModel.adjustPenalty(-1),
                 child: Text("-1"),
               ),
               ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(-2),
-                child: Text("-2"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(-3),
-                child: Text("-3"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.setPenaltyAmount(-4),
-                child: Text("-4"),
+                onPressed: () => viewModel.adjustPenalty(1),
+                child: Text("+1"),
               ),
             ],
           ),

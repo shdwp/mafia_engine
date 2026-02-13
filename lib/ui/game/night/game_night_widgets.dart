@@ -23,7 +23,11 @@ class GameNightRoleActionViewModel
     extends GameFrameViewModel<GameFrameNightRoleAction> {
   GameNightRoleActionViewModel(super.gameViewModel, super.lastFrame) {
     targetPlayers = state.players.map(
-      (p) => GamePlayerSelectorViewModel(p, true, p.index == current.index),
+      (p) => GamePlayerSelectorViewModel(
+        p,
+        available: true,
+        selected: p.index == current.index,
+      ),
     );
   }
 
@@ -68,7 +72,7 @@ class GameScreenNightRoleActionWidget extends StatelessWidget {
         GamePlayerListWidget(
           players: viewModel.actionablePlayers,
           showRoles: true,
-          vertical: false,
+          vertical: true,
         ),
         Visibility(
           visible: viewModel.isBlocked,

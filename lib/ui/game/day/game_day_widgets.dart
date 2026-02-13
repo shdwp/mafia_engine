@@ -21,8 +21,9 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
+        Column(
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 8,
           children: [
@@ -42,9 +43,11 @@ class GameDaySpeechViewModel extends GameFrameViewModel<GameFrameDaySpeech> {
     players = state.players.map(
       (p) => GamePlayerSelectorViewModel(
         p,
-        p.index == current.putUpForVoteIndex ||
+        available:
+            p.index == current.putUpForVoteIndex ||
             (p.alive && !state.playersUpForVote.contains(p)),
-        p.index == current.putUpForVoteIndex,
+        selected: p.index == current.putUpForVoteIndex,
+        highlighted: p.index == current.index,
       ),
     );
   }
@@ -75,7 +78,7 @@ class _GameScreenDaySpeechState extends State<GameScreenDaySpeechWidget> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Row(
+        Column(
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 8,
           children: [
@@ -154,8 +157,9 @@ class GameScreenDayPlayerVotingSpeechWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
+        Column(
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 8,
           children: [
@@ -183,8 +187,9 @@ class GameDayVoteOnViewModel
     votingPlayers = state.players.map((p) {
       return GamePlayerSelectorViewModel(
         p,
-        p.alive && !alreadyVotedMap.contains(p.index),
-        current.votes.contains(p.index),
+        available: p.alive && !alreadyVotedMap.contains(p.index),
+        selected: current.votes.contains(p.index),
+        highlighted: p.index == current.playerToVoteFor,
       );
     });
 
@@ -235,8 +240,9 @@ class GameDayVoteOnAllLeavingViewModel
     votingPlayers = state.players.map((p) {
       return GamePlayerSelectorViewModel(
         p,
-        p.alive && !current.playersToVoteFor.contains(p.index),
-        current.votes.contains(p.index),
+        available: p.alive && !current.playersToVoteFor.contains(p.index),
+        selected: current.votes.contains(p.index),
+        highlighted: current.playersToVoteFor.contains(p.index),
       );
     });
   }
@@ -297,25 +303,12 @@ class GameScreenDayPlayersVotedOutWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         GameTimerWidget(
           timeInSeconds: context.read<GameConfigService>().farewellTimer,
         ),
-        Expanded(
-          child: ListView.separated(
-            separatorBuilder: (context, index) => SizedBox(height: 18),
-            itemCount: viewModel.players.length,
-            itemBuilder: (context, index) => Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                GamePlayerBadgeWidget(
-                  player: viewModel.players.elementAt(index),
-                ),
-              ],
-            ),
-          ),
-        ),
+        GamePlayerListWidget(players: viewModel.players, vertical: true),
       ],
     );
   }
