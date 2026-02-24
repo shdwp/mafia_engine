@@ -21,8 +21,13 @@ class GameUILib {
   static String formatFullPlayerName(GamePlayer player) =>
       "${formatSeatName(player)} ${formatPlayerName(player)}";
 
-  static String deadPrefix(GamePlayer player) => player.alive ? "" : "$deadSymbol ";
-  static String deadSuffix(GamePlayer player) => player.alive ? "" : " $deadSymbol";
+  static String formatPenalties(GamePlayer player) =>
+      player.penalties > 0 ? " 🚨${player.penalties}" : "";
+
+  static String deadPrefix(GamePlayer player) =>
+      player.alive ? "" : "$deadSymbol ";
+  static String deadSuffix(GamePlayer player) =>
+      player.alive ? "" : " $deadSymbol";
 
   static String deadSymbol = "💀";
 
@@ -140,22 +145,26 @@ class GamePlayerSelectorWidget extends StatelessWidget {
     required this.players,
     this.onPress,
     this.showRoles = false,
+    this.crossAxisCount = 4,
   });
 
   final Iterable<GamePlayerSelectorViewModel> players;
-  final Function(int index)? onPress;
+  final void Function(int index)? onPress;
   final bool showRoles;
+  final int crossAxisCount;
 
   @override
   Widget build(BuildContext context) {
     return GridView.count(
       padding: EdgeInsetsGeometry.all(8),
-      crossAxisCount: 4,
+      crossAxisCount: crossAxisCount,
       children: List.generate(players.length, (index) {
         final element = players.elementAt(index);
-        final onPressed = !element.available || onPress == null
+        final onPressCallback = !element.available
             ? null
-            : () => onPress!(index);
+            : () {
+                if (onPress != null) onPress!(index);
+              };
         final String text = GameUILib.formatSeatName(element.player);
 
         Widget child;
@@ -201,10 +210,10 @@ class GamePlayerSelectorWidget extends StatelessWidget {
         );
 
         if (element.selected) {
-          return FilledButton(onPressed: onPressed, child: child);
+          return FilledButton(onPressed: onPressCallback, child: child);
         } else {
           return ElevatedButton(
-            onPressed: onPressed,
+            onPressed: onPressCallback,
             style: ButtonStyle(
               backgroundColor: WidgetStatePropertyAll(
                 element.highlighted ? Colors.lightGreenAccent : null,
@@ -315,14 +324,14 @@ class GameResultWidget extends StatelessWidget {
         break;
 
       case GameResult.civiliansWon:
-        text = "Civilians won!";
+        text = "Town won!";
         var viewModel = GameUILib.roleViewModel(GameRole.civilian);
         background = viewModel.background;
         foreground = viewModel.foreground;
         break;
 
       case GameResult.killerMafiaDraw:
-        text = "Mafia/killer draw!";
+        text = "M/K draw!";
         background = Colors.black;
         foreground = Colors.yellow;
         break;
@@ -348,11 +357,13 @@ class GameResultWidget extends StatelessWidget {
 class GamePlayerBadgeWidget extends StatelessWidget {
   final GamePlayer player;
   final bool showRole;
+  final bool showPenalties;
 
   const GamePlayerBadgeWidget({
     super.key,
     required this.player,
     this.showRole = false,
+    this.showPenalties = true,
   });
 
   @override
@@ -367,7 +378,8 @@ class GamePlayerBadgeWidget extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.all(8.0),
         child: Text(
-          GameUILib.formatFullPlayerName(player),
+          GameUILib.formatFullPlayerName(player) +
+              GameUILib.formatPenalties(player),
           overflow: TextOverflow.fade,
           style: TextStyle(
             fontSize: 18,
@@ -400,27 +412,36 @@ class _GameTimerState extends State<GameTimerWidget> {
         children: [
           IconButton.filled(
             onPressed: timerService.hasTimer
-                ? () => timerService.start(widget.timeInSeconds)
+                ? () {
+                    if (!timerService.isPaused) {
+                      timerService.start(widget.timeInSeconds);
+                    } else {
+                      timerService.stop();
+                    }
+                  }
                 : null,
             icon: Icon(Icons.history),
           ),
           Text(timerService.formattedTime, style: TextStyle(fontSize: 24)),
-          Visibility(
-            visible: !timerService.hasTimer,
-            child: IconButton.filled(
+          /*
+          IconButton.filled(
+            onPressed: timerService.hasTimer ? () => timerService.stop() : null,
+            icon: Icon(Icons.stop),
+          ),
+		  */
+          if (!timerService.hasTimer)
+            IconButton.filled(
               onPressed: () => timerService.start(widget.timeInSeconds),
               icon: Icon(Icons.play_arrow),
             ),
-          ),
-          Visibility(
-            visible: timerService.hasTimer,
-            child: IconButton.filled(
+
+          if (timerService.hasTimer)
+            IconButton.filled(
               onPressed: () => timerService.togglePause(),
               icon: timerService.isPaused
                   ? Icon(Icons.play_arrow)
                   : Icon(Icons.pause),
             ),
-          ),
         ],
       ),
     );
@@ -481,18 +502,65 @@ class GamePlayerCountersWidget extends StatelessWidget {
           role: GameRole.mafia,
           textOverride: state.mafiaCount.toString(),
         ),
-        Visibility(
-          visible: state.rolesInTheGame.contains(GameRole.killer),
-          child: GamePlayerRoleWidget(
+        if (state.rolesInTheGame.contains(GameRole.killer))
+          GamePlayerRoleWidget(
             role: GameRole.killer,
             textOverride: state.killerCount.toString(),
           ),
-        ),
         GamePlayerRoleWidget(
           role: GameRole.none,
           textOverride: state.aliveCount.toString(),
         ),
       ],
+    );
+  }
+}
+
+class GameScoresWidget extends StatelessWidget {
+  final List<GameScore> scores;
+
+  const GameScoresWidget({super.key, required this.scores});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: EdgeInsetsGeometry.all(8),
+      itemCount: scores.length,
+      separatorBuilder: (context, index) => Divider(),
+      itemBuilder: (context, index) {
+        var score = scores[index];
+        var player = score.player;
+        var decoration = player.alive ? null : TextDecoration.lineThrough;
+
+        return Row(
+          spacing: 4,
+          children: [
+            Text(GameUILib.formatSeatName(player)),
+            Expanded(
+              child: Text(
+                GameUILib.formatPlayerName(player),
+                style: TextStyle(decoration: decoration),
+              ),
+            ),
+            GamePlayerRoleWidget(role: player.role),
+
+            if (score.winPoints > 0) Text("${score.winPoints}"),
+            if (score.aliveBonusPoints > 0) Text("+${score.aliveBonusPoints}"),
+            if (score.sheriffChecksPoints > 0)
+              Text("+${score.sheriffChecksPoints}"),
+            if (score.doctorSavePoints > 0) Text("+${score.doctorSavePoints}"),
+            if (score.priestBlockedPoints > 0)
+              Text("+${score.priestBlockedPoints}"),
+            if (score.donFoundSheriffPoints > 0)
+              Text("+${score.donFoundSheriffPoints}"),
+            if (score.killerBonusPoints > 0)
+              Text("+${score.killerBonusPoints}"),
+            if (score.mafiaGuessPoints > 0) Text("+${score.mafiaGuessPoints}"),
+
+            Text("= ${score.total}"),
+          ],
+        );
+      },
     );
   }
 }

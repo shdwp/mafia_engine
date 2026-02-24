@@ -25,18 +25,30 @@ abstract class GameFrame {
 }
 
 class GameFrameStart extends GameFrame {
-  GameFrameStart() : gameName = GameRepository.newSaveGameName();
+  GameFrameStart()
+    : gameName = GameRepository.newGameName(),
+      fileName = GameRepository.newSaveGameFileName(),
+      dateTime = DateTime.now();
+
   GameFrameStart.fromJson(GameLoadState state)
-    : gameName = state.get("gameName");
+    : gameName = state.get("gameName"),
+      fileName = state.get("fileName"),
+      dateTime = DateTime.fromMillisecondsSinceEpoch(state.get("dateTime"));
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"gameName": gameName});
+    dict.addAll({
+      "gameName": gameName,
+      "fileName": fileName,
+      "dateTime": dateTime.millisecondsSinceEpoch,
+    });
     return dict;
   }
 
+  String fileName;
   String gameName;
+  DateTime dateTime;
 }
 
 class GameFrameAddPlayers extends GameFrame {
@@ -218,18 +230,34 @@ class GameFrameNightStart extends GameFrame {
 }
 
 class GameFrameDayFarewellSpeech extends GameFrame {
-  GameFrameDayFarewellSpeech(this.index);
+  GameFrameDayFarewellSpeech(this.playersKilled, this.firstNight) {
+    for (final _ in playersKilled) {
+      firstNightGuesses.add([]);
+    }
+  }
+
   GameFrameDayFarewellSpeech.fromJson(GameLoadState state)
-    : index = state.get("index");
+    : playersKilled = state.getList("playersKilled"),
+      firstNight = state.get("firstNight") {
+    for (final kv in playersKilled.indexed) {
+      firstNightGuesses.add(state.getList("firstNightGuess_${kv.$1}"));
+    }
+  }
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"index": index});
+    dict.addAll({"playersKilled": playersKilled, "firstNight": firstNight});
+
+    for (final kv in playersKilled.indexed) {
+      dict["firstNightGuess_${kv.$1}"] = firstNightGuesses[kv.$1];
+    }
     return dict;
   }
 
-  final int index;
+  final List<int> playersKilled;
+  List<List<int>> firstNightGuesses = [];
+  final bool firstNight;
 }
 
 class GameFrameNightRoleAction extends GameFrame {

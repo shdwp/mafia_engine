@@ -11,7 +11,29 @@ class GameDayFarewellSpeechViewModel
     extends GameFrameViewModel<GameFrameDayFarewellSpeech> {
   GameDayFarewellSpeechViewModel(super.gameViewModel, super.lastFrame);
 
-  GamePlayer get player => state.players[current.index];
+  Iterable<GamePlayer> get players =>
+      current.playersKilled.map((i) => state.players[i]);
+
+  Iterable<GamePlayer> get allPlayers => state.players;
+
+  bool get shouldShowGuess => current.firstNight;
+
+  Iterable<GamePlayer> get firstGuessPlayers =>
+      state.players.where((p) => current.playersKilled.contains(p.index));
+
+  bool isGuessSelected(int playerIndex, int guessIndex) {
+    return current.firstNightGuesses[playerIndex].contains(guessIndex);
+  }
+
+  void toggleGuess(int playerIndex, int guessIndex) {
+    if (current.firstNightGuesses[playerIndex].contains(guessIndex)) {
+      current.firstNightGuesses[playerIndex].remove(guessIndex);
+    } else {
+      current.firstNightGuesses[playerIndex].add(guessIndex);
+    }
+
+    setDirty();
+  }
 }
 
 class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
@@ -22,16 +44,47 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          spacing: 8,
-          children: [
-            GamePlayerBadgeWidget(player: viewModel.player),
-            GameTimerWidget(
-              timeInSeconds: context.read<GameConfigService>().farewellTimer,
+        GameTimerWidget(
+          timeInSeconds: context.read<GameConfigService>().farewellTimer,
+        ),
+
+        ListenableBuilder(
+          listenable: viewModel,
+          builder: (context, child) => Expanded(
+            child: ListView.separated(
+              itemBuilder: (context, index) => Column(
+                children: [
+                  GamePlayerBadgeWidget(
+                    player: viewModel.players.elementAt(index),
+                  ),
+
+                  if (viewModel.shouldShowGuess)
+                    SizedBox(
+                      height: 240,
+                      child: GamePlayerSelectorWidget(
+                        crossAxisCount: 6,
+                        players: viewModel.allPlayers.map(
+                          (p) => GamePlayerSelectorViewModel(
+                            p,
+                            available: true,
+                            highlighted:
+                                p.index ==
+                                viewModel.players.elementAt(index).index,
+                            selected: viewModel.isGuessSelected(index, p.index),
+                          ),
+                        ),
+                        onPress: (selectedIndex) =>
+                            viewModel.toggleGuess(index, selectedIndex),
+                      ),
+                    ),
+                ],
+              ),
+              separatorBuilder: (context, index) => Divider(),
+              itemCount: viewModel.players.length,
             ),
-          ],
+          ),
         ),
       ],
     );

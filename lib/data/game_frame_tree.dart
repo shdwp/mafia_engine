@@ -13,6 +13,24 @@ extension GameTree on GameFrame {
     return result;
   }
 
+  Iterable<T> findAll<T extends GameFrame>() sync* {
+    GameFrame? frame = this;
+    do {
+      if (frame is T) yield frame;
+      frame = frame!.previous;
+    } while (frame != null);
+  }
+
+  Iterable<T> findAllPredicate<T extends GameFrame>(
+    bool Function(T frame) predicate,
+  ) sync* {
+    GameFrame? frame = this;
+    do {
+      if (frame is T && predicate(frame)) yield frame;
+      frame = frame!.previous;
+    } while (frame != null);
+  }
+
   Iterable<T> takeAllBackwardsIncludingUntil<T extends GameFrame>(
     bool Function(T frame) predicate,
   ) {
@@ -63,6 +81,17 @@ extension GameTree on GameFrame {
 
     while (frame.previous != null) {
       frame = frame.previous!;
+      if (frame is T && predicate(frame)) return frame;
+    }
+    return null;
+  }
+
+  T? findForwards<T extends GameFrame>(bool Function(T frame) predicate) {
+    var frame = this;
+    if (frame is T && predicate(frame)) return frame;
+
+    while (frame.next != null) {
+      frame = frame.next!;
       if (frame is T && predicate(frame)) return frame;
     }
     return null;

@@ -43,6 +43,12 @@ class GameTimer {
     notifier.notify();
   }
 
+  void stop() {
+    _remainingSeconds = null;
+    _paused = false;
+    notifier.notify();
+  }
+
   void togglePause() {
     _paused = !_paused;
     notifier.notify();

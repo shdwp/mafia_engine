@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:async/async.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mafia_engine/data/game_config.dart';
+import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_state.dart';
 import 'package:path_provider/path_provider.dart';
@@ -31,6 +34,30 @@ class GameSaveFile {
   final DateTime modifiedDate;
 
   GameSaveFile(this.name, this.modifiedDate, this.path);
+}
+
+class GameScore {
+  num get total =>
+      winPoints +
+      aliveBonusPoints +
+      sheriffChecksPoints +
+      doctorSavePoints +
+      priestBlockedPoints +
+      donFoundSheriffPoints +
+      killerBonusPoints;
+
+  final GamePlayer player;
+
+  num winPoints = 0;
+  num aliveBonusPoints = 0;
+  num sheriffChecksPoints = 0;
+  num doctorSavePoints = 0;
+  num priestBlockedPoints = 0;
+  num donFoundSheriffPoints = 0;
+  num killerBonusPoints = 0;
+  num mafiaGuessPoints = 0;
+
+  GameScore(this.player);
 }
 
 class GameRepository {
@@ -68,13 +95,17 @@ class GameRepository {
 
   Future<Result<String>> duplicate(GameFrame frame) async {
     var root = frame.findFirst() as GameFrameStart;
+    var fileName = root.fileName;
     var gameName = root.gameName;
-    var newGameName = duplicatedSaveGameName(root);
 
-    root.gameName = newGameName;
+    var newGameFileName = "$fileName ${duplicationSuffix()}";
+
+    root.fileName = newGameFileName;
+    root.gameName = "$gameName ${duplicationSuffix()}";
     await _saveTree(frame);
+    root.fileName = fileName;
     root.gameName = gameName;
-    return Result.value(newGameName);
+    return Result.value(newGameFileName);
   }
 
   Future undoDuplication(String name) async {
@@ -99,14 +130,25 @@ class GameRepository {
     var result = List<GameSaveFile>.empty(growable: true);
     final directory = await getApplicationDocumentsDirectory();
     final dir = Directory("${directory.path}/games/");
+    if (!dir.existsSync()) return Result.value(result);
+
     await for (final entity in dir.list()) {
       if (entity is File && entity.uri.pathSegments.last.endsWith(".json")) {
+        final jsonString = await entity.readAsString();
+        final dict = json.decode(jsonString) as Map<String, dynamic>;
+
+        var name = entity.uri.pathSegments.last;
+        for (final kv in dict.entries) {
+          final state = GameLoadState(kv.value as Map<String, dynamic>);
+          if (kv.value["type"] == "GameFrameStart") {
+            final frame = GameFrameStart.fromJson(state);
+            name = frame.gameName;
+            break;
+          }
+        }
+
         result.add(
-          GameSaveFile(
-            entity.uri.pathSegments.last,
-            await entity.lastModified(),
-            entity.path,
-          ),
+          GameSaveFile(name, await entity.lastModified(), entity.path),
         );
       }
     }
@@ -139,6 +181,11 @@ class GameRepository {
     }
 
     final lastFrame = currentFrame.findLast();
+    return Result.value(GameState.calculate(lastFrame));
+  }
+
+  Result<GameState> moveBottom(GameFrame currentFrame) {
+    final lastFrame = currentFrame.findFirst();
     return Result.value(GameState.calculate(lastFrame));
   }
 
@@ -203,6 +250,213 @@ class GameRepository {
     return Result.value(newState);
   }
 
+  List<GameScore> calculateScores(GameFrame frame) {
+    var result = <GameScore>[];
+    var state = GameState.calculate(frame, ignoreLast: false);
+    var config = GameConfigService();
+
+    for (final player in state.players) {
+      var score = GameScore(player);
+      switch (state.gameResult) {
+        case GameResult.killerWon:
+          if (player.role == GameRole.killer) {
+            score.winPoints = config.killerWinPoints;
+          }
+          break;
+        case GameResult.mafiaWon:
+          if (player.role.isMafia) {
+            score.winPoints = config.mafiaWinPoints;
+
+            if (player.alive) {
+              score.aliveBonusPoints = config.mafiaAliveWinBonusPoints;
+            }
+          }
+          break;
+        case GameResult.civiliansWon:
+          if (player.role.isCivilian) {
+            score.winPoints = config.civilianWinPoints;
+          }
+          break;
+        case GameResult.killerMafiaDraw:
+          if (player.role.isMafia) {
+            score.winPoints = config.kmDrawMafiaPoints;
+          }
+          if (player.role.isKiller) {
+            score.winPoints = config.kmDrawKillerPoints;
+          }
+          break;
+        default:
+          break;
+      }
+
+      if (player.role.isCivilian || player.role.isKiller) {
+        var firstNightFarewell = frame
+            .findBackwards<GameFrameDayFarewellSpeech>((f) => f.firstNight);
+
+        final guessIndex = firstNightFarewell?.playersKilled.indexOf(
+          player.index,
+        );
+
+        if (guessIndex != null && guessIndex != -1) {
+          num guessedCorrectly = 0;
+          for (final guessIndex
+              in firstNightFarewell!.firstNightGuesses[guessIndex]) {
+            if (state.players[guessIndex].role.isMafia) {}
+            guessedCorrectly++;
+          }
+
+          final blackTeamCount =
+              3 + (state.rolesInTheGame.contains(GameRole.priest) ? 1 : 0);
+
+          if (guessedCorrectly >= blackTeamCount) {
+            score.mafiaGuessPoints = config.guessPointsFull;
+          } else if (guessedCorrectly >= blackTeamCount / 2) {
+            score.mafiaGuessPoints = config.guessPointsHalf;
+          }
+        }
+      }
+
+      if (player.role == GameRole.sheriff) {
+        var frames = frame.findAllPredicate<GameFrameNightRoleAction>(
+          (f) => f.role == GameRole.sheriff,
+        );
+
+        var blackCheckedPlayers = <int>{};
+        for (final frame in frames) {
+          if (frame.index == null) continue;
+
+          if (state.players[frame.index!].role.isMafia) {
+            blackCheckedPlayers.add(frame.index!);
+          }
+
+          if (state.players[frame.index!].role.isKiller) {
+            var stateAtTheTime = GameState.calculate(frame, ignoreLast: false);
+            if (stateAtTheTime.mafiaCount == 0) {
+              blackCheckedPlayers.add(frame.index!);
+            }
+          }
+        }
+
+        score.sheriffChecksPoints +=
+            config.sheriffFoundOpposingPlayersPoints *
+            blackCheckedPlayers.length;
+      }
+
+      if (player.role == GameRole.doctor) {
+        var frames = frame.findAllPredicate<GameFrameNightRoleAction>(
+          (f) => f.role == GameRole.doctor,
+        );
+        for (final frame in frames) {
+          if (frame.index == null) continue;
+
+          final firstNightFrame = frame.findBackwards(
+            (f) => f is GameFrameNightStart,
+          );
+
+          final mafiaAction = firstNightFrame
+              ?.findForwards<GameFrameNightRoleAction>(
+                (f) => f.role == GameRole.mafia,
+              );
+
+          final killerAction = firstNightFrame
+              ?.findForwards<GameFrameNightRoleAction>(
+                (f) => f.role == GameRole.killer,
+              );
+
+          if (mafiaAction?.index == frame.index ||
+              killerAction?.index == frame.index) {
+            switch (state.players[frame.index!].role) {
+              case GameRole.doctor:
+              case GameRole.civilian:
+                score.doctorSavePoints += config.doctorSavedCivilianPoints;
+                break;
+              case GameRole.sheriff:
+                score.doctorSavePoints += config.doctorSavedSheriffPoints;
+                break;
+              default:
+                break;
+            }
+          }
+        }
+      }
+
+      if (player.role == GameRole.killer) {
+        var frames = frame.findAllPredicate<GameFrameNightRoleAction>(
+          (f) => f.role == GameRole.killer,
+        );
+        for (final frame in frames) {
+          if (frame.index == null) continue;
+
+          switch (state.players[frame.index!].role) {
+            case GameRole.sheriff:
+              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              break;
+            case GameRole.doctor:
+              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              break;
+            case GameRole.mafia:
+              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              break;
+            case GameRole.don:
+              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              break;
+            case GameRole.priest:
+              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              break;
+            default:
+              break;
+          }
+        }
+      }
+
+      if (player.role == GameRole.priest) {
+        var frames = frame.findAllPredicate<GameFrameNightRoleAction>(
+          (f) => f.role == GameRole.priest,
+        );
+        for (final frame in frames) {
+          if (frame.index == null) continue;
+
+          switch (state.players[frame.index!].role) {
+            case GameRole.sheriff:
+              score.priestBlockedPoints += config.priestBlockedSheriffPoints;
+              break;
+            case GameRole.doctor:
+              score.priestBlockedPoints += config.priestBlockedDoctorPoints;
+              break;
+            case GameRole.killer:
+              score.priestBlockedPoints += config.priestBlockedKilledPoints;
+              break;
+            default:
+              break;
+          }
+        }
+      }
+
+      if (player.role == GameRole.don) {
+        var foundSheriff = false;
+        var frames = frame.findAllPredicate<GameFrameNightRoleAction>(
+          (f) => f.role == GameRole.don,
+        );
+
+        for (final frame in frames) {
+          if (frame.index == null) continue;
+
+          if (state.players[frame.index!].role == GameRole.sheriff) {
+            foundSheriff = true;
+          }
+        }
+
+        if (foundSheriff) {
+          score.donFoundSheriffPoints = config.donFoundSheriffPoints;
+        }
+      }
+
+      result.add(score);
+    }
+
+    return result;
+  }
+
   void _savePlayerNames(Iterable<String> names) async {
     final directory = await getApplicationDocumentsDirectory();
     final path = "${directory.path}/names/names.json";
@@ -223,12 +477,17 @@ class GameRepository {
     return Result.value(list.map((k) => k.toString()).toList());
   }
 
-  static String newSaveGameName() {
+  static String newGameName() {
+    final DateFormat formatter = DateFormat("MMM d, HH:mm");
+    return formatter.format(DateTime.now());
+  }
+
+  static String newSaveGameFileName() {
     final DateFormat formatter = DateFormat("MMM d, HH-mm");
     return formatter.format(DateTime.now());
   }
 
-  static String duplicatedSaveGameName(GameFrameStart root) {
+  static String duplicatedSaveGameFileName(GameFrameStart root) {
     final DateFormat formatter = DateFormat("HH-mm-ss");
     final String suffix = formatter.format(DateTime.now());
 
@@ -237,10 +496,17 @@ class GameRepository {
     return newGameName;
   }
 
+  static String duplicationSuffix() {
+    final DateFormat formatter = DateFormat("HH-mm-ss");
+    final String suffix = formatter.format(DateTime.now());
+
+    return "dup $suffix";
+  }
+
   Future _saveTree(GameFrame frame) async {
     final root = frame.findFirst() as GameFrameStart;
     final directory = await getApplicationDocumentsDirectory();
-    final path = "${directory.path}/games/${root.gameName}.json";
+    final path = "${directory.path}/games/${root.fileName}.json";
     final file = File(path);
 
     GameFrame? currentFrame = root;

@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Mafia Engine")),
+      appBar: AppBar(title: Text("Mafia Engine"), shadowColor: Colors.black),
       floatingActionButton: FloatingActionButton.extended(
         label: Text("New game"),
         icon: Icon(Icons.add),
@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
         right: true,
         maintainBottomViewPadding: true,
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
             children: [
               ListenableBuilder(

@@ -38,16 +38,32 @@ class GameNightRoleActionViewModel
         )
       : state.players.whereRole(current.role);
 
+  GamePlayer? get lastTarget {
+    if (current.role == GameRole.priest) {
+      return state.lastPriestBlock != null
+          ? state.players[state.lastPriestBlock!]
+          : null;
+    }
+
+    if (current.role == GameRole.doctor) {
+      return state.lastDoctorHeal != null
+          ? state.players[state.lastDoctorHeal!]
+          : null;
+    }
+
+    return null;
+  }
+
   bool get isBlocked {
     var isBlocked = false;
 
     for (final player in actionablePlayers) {
-      var blockedRole = state.priestBlockedPlayer?.role;
+      var blockedRole = state.currentNightBlockedPlayer?.role;
       if (blockedRole?.isMafia == true) {
         isBlocked = player.role.isMafia;
       }
 
-      if (state.priestBlockedPlayer == player) isBlocked = true;
+      if (state.currentNightBlockedPlayer == player) isBlocked = true;
     }
 
     return isBlocked;
@@ -74,9 +90,29 @@ class GameScreenNightRoleActionWidget extends StatelessWidget {
           showRoles: true,
           vertical: true,
         ),
-        Visibility(
-          visible: viewModel.isBlocked,
-          child: DecoratedBox(
+        if (viewModel.lastTarget != null)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.yellow,
+              borderRadius: BorderRadiusGeometry.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("Last target: ", style: TextStyle(fontSize: 18)),
+                  GamePlayerBadgeWidget(
+                    player: viewModel.lastTarget!,
+                    showRole: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        if (viewModel.isBlocked)
+          DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.red,
               borderRadius: BorderRadiusGeometry.circular(20),
@@ -85,11 +121,11 @@ class GameScreenNightRoleActionWidget extends StatelessWidget {
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 "BLOCKED",
-                style: TextStyle(fontSize: 36, color: Colors.white),
+                style: TextStyle(fontSize: 28, color: Colors.white),
               ),
             ),
           ),
-        ),
+
         Expanded(
           child: ListenableBuilder(
             listenable: viewModel,

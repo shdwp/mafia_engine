@@ -1,8 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
+import 'package:mafia_engine/data/game_timer.dart';
 import 'package:mafia_engine/ui/game/game_viewmodel.dart';
 import 'package:mafia_engine/ui/game/game_widgets.dart';
+
+class BackupTimerViewModel extends ChangeNotifier {
+  final GameTimer timer;
+  int timeInSeconds = 60;
+
+  BackupTimerViewModel(this.timer);
+
+  void setTimeInSeconds(int seconds) {
+    timeInSeconds = seconds;
+    timer.start(timeInSeconds);
+    notifyListeners();
+  }
+}
+
+class BackupTimerWidget extends StatelessWidget {
+  final BackupTimerViewModel viewModel;
+
+  const BackupTimerWidget({super.key, required this.viewModel});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, child) => Column(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 8.0,
+        children: [
+          GameTimerWidget(timeInSeconds: viewModel.timeInSeconds),
+          FilledButton(
+            onPressed: () => viewModel.setTimeInSeconds(60),
+            child: Text("60s"),
+          ),
+          FilledButton(
+            onPressed: () => viewModel.setTimeInSeconds(30),
+            child: Text("30s"),
+          ),
+          FilledButton(
+            onPressed: () => viewModel.setTimeInSeconds(10),
+            child: Text("10s"),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class GameNarratorStateOverrideViewModel
     extends GameFrameViewModel<GameFrameNarratorStateOverride> {
@@ -149,15 +195,19 @@ class GameNarratorPenalizeViewModel
         selected: current.index == p.index,
       ),
     );
+
+    if (current.index != null) selectedPlayer = state.players[current.index!];
   }
 
   Iterable<GamePlayerSelectorViewModel> players = List.empty();
-  String? get currentAmount =>
-      (current.index != null ? state.players[current.index!].penalties : null)
-          .toString();
+  String get currentAmount => current.amount.toString();
+
+  GamePlayer? selectedPlayer;
 
   void select(int index) {
     current.index = index;
+    selectedPlayer = state.players[index];
+    current.amount = 0;
     setDirty();
   }
 
@@ -178,29 +228,35 @@ class GameScreenNarratorPenalizeWidget extends StatelessWidget {
       listenable: viewModel,
       builder: (context, child) => Column(
         children: [
+          if (viewModel.selectedPlayer != null)
+            GamePlayerBadgeWidget(player: viewModel.selectedPlayer!),
           Expanded(
             child: GamePlayerSelectorWidget(
               players: viewModel.players,
+              showRoles: true,
               onPress: (index) => viewModel.select(index),
             ),
           ),
           Text(
-            viewModel.currentAmount != null
-                ? "Current penaties: ${viewModel.currentAmount!}"
+            viewModel.selectedPlayer != null
+                ? "Added penalty points: ${viewModel.currentAmount}"
                 : "Player not selected",
             style: TextStyle(fontSize: 18),
           ),
-          Row(
-            children: [
-              ElevatedButton(
-                onPressed: () => viewModel.adjustPenalty(-1),
-                child: Text("-1"),
-              ),
-              ElevatedButton(
-                onPressed: () => viewModel.adjustPenalty(1),
-                child: Text("+1"),
-              ),
-            ],
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FilledButton(
+                  onPressed: () => viewModel.adjustPenalty(-1),
+                  child: Text("-"),
+                ),
+                FilledButton(
+                  onPressed: () => viewModel.adjustPenalty(1),
+                  child: Text("+"),
+                ),
+              ],
+            ),
           ),
         ],
       ),

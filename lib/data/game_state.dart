@@ -3,9 +3,15 @@ import 'dart:core';
 import 'package:flutter/foundation.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
-import 'package:mafia_engine/ui/game/game_screen.dart';
 
 import 'game_frame_tree.dart';
+
+class GameCriticalDayCalculation {
+  final int votingAttempts;
+  final List<String> log;
+
+  GameCriticalDayCalculation(this.votingAttempts, this.log);
+}
 
 class GameState {
   const GameState(
@@ -15,8 +21,11 @@ class GameState {
     this.lastFrame,
     this.gameResult,
     this.players,
+    this.isNightPhase,
     this.voteMap,
-    this.priestBlockedPlayer,
+    this.lastPriestBlock,
+    this.currentNightBlockedPlayer,
+    this.lastDoctorHeal,
     this.playersUpForVote,
     this.rolesInTheGame,
   );
@@ -27,8 +36,12 @@ class GameState {
   final GameFrame lastFrame;
   final GameResult gameResult;
   final List<GamePlayer> players;
+
+  final bool isNightPhase;
+  final int? lastPriestBlock;
+  final int? lastDoctorHeal;
   final Map<int, List<int>> voteMap;
-  final GamePlayer? priestBlockedPlayer;
+  final GamePlayer? currentNightBlockedPlayer;
   final List<GamePlayer> playersUpForVote;
   final List<GameRole> rolesInTheGame;
 
@@ -43,6 +56,9 @@ class GameState {
     var rolesInTheGame = <GameRole>[];
     Map<int, List<int>> voteMap = {};
     int? priestTarget;
+    int? lastPriestTarget;
+    int? lastDoctorTarget;
+    bool isNightPhase = true;
 
     var rootFrame = lastFrame.findFirst();
     GameFrame? frame = rootFrame;
@@ -50,6 +66,7 @@ class GameState {
       if (!ignoreLast || frame != lastFrame) {
         switch (frame) {
           case GameFrameAddPlayers addPlayersFrame:
+            isNightPhase = true;
             players.addAll(
               addPlayersFrame.players.indexed.map(
                 (kv) => GamePlayer(kv.$1, kv.$2),
@@ -81,6 +98,7 @@ class GameState {
             break;
 
           case GameFrameNightStart _:
+            isNightPhase = true;
             priestTarget = null;
             playersUpForVote.clear();
             break;
@@ -88,14 +106,31 @@ class GameState {
           case GameFrameNightRoleAction frame:
             if (frame.role == GameRole.priest) {
               priestTarget = frame.index;
+              lastPriestTarget = frame.index;
+            }
+
+            if (frame.role == GameRole.doctor) {
+              lastDoctorTarget = frame.index;
             }
             break;
         }
       }
 
       switch (frame) {
+        case GameFrameNightStart _:
+          isNightPhase = true;
+          break;
+
+        case GameFrameDaySpeech _:
+          isNightPhase = false;
+          break;
+
         case GameFrameDayFarewellSpeech frame:
-          players[frame.index].alive = false;
+          isNightPhase = false;
+          for (final index in frame.playersKilled) {
+            final player = players[index];
+            player.alive = false;
+          }
           break;
 
         case GameFrameNarratorPenalize penaltyFrame:
@@ -115,6 +150,8 @@ class GameState {
           break;
 
         case GameFrameNarratorStateOverride frame:
+          isNightPhase =
+              frame.type == GameFrameNarratorStateOverrideType.nightStart;
           players.clear();
           rolesInTheGame.clear();
           playersUpForVote.clear();
@@ -145,8 +182,11 @@ class GameState {
       lastFrame,
       gameEndResult,
       players,
+      isNightPhase,
       voteMap,
+      lastPriestTarget,
       priestTarget != null ? players[priestTarget] : null,
+      lastDoctorTarget,
       playersUpForVote,
       rolesInTheGame,
     );
@@ -255,6 +295,102 @@ class GameState {
     return next;
   }
 
+  static GameCriticalDayCalculation calculateCriticalDay(
+    int playerCount,
+    List<GameRole> roles,
+  ) {
+    List<String> log = [];
+    var amountOfVotes = 0;
+
+    int mafiaCount = 3 + (roles.contains(GameRole.priest) ? 1 : 0);
+    int nonMafiaCount = playerCount - mafiaCount;
+
+    final mafiaPoints = 7 + 2 + (roles.contains(GameRole.priest) ? 3 : 0);
+    final civPoints =
+        4 +
+        (roles.contains(GameRole.doctor) ? 4 : 0) +
+        nonMafiaCount -
+        1 -
+        (roles.contains(GameRole.killer) ? 1 : 0) -
+        (roles.contains(GameRole.doctor) ? 1 : 0);
+
+    String constructStatus(count) {
+      return "$count vs $mafiaCount";
+    }
+
+    final killerPoints = roles.contains(GameRole.killer) ? 6 : 0;
+    final totalPoints = civPoints + mafiaPoints + killerPoints;
+
+    var probabilityString =
+        "📈 civ ${(civPoints / totalPoints * 100).toInt()}%, mafia ${(mafiaPoints / totalPoints * 100).toInt()}%";
+
+    if (roles.contains(GameRole.killer)) {
+      probabilityString +=
+          ", killer ${(killerPoints / totalPoints * 100).toInt()}%";
+    }
+    log.add(probabilityString);
+
+    if (roles.contains(GameRole.killer)) {
+      var count = nonMafiaCount;
+
+      log.add("☀️ Day 1 ☀️");
+      amountOfVotes++;
+      count--;
+      log.add("Day 1 vote kill, ${constructStatus(count)}");
+
+      for (var day = 2; day < 99; day++) {
+        log.add("☀️ Day $day ☀️");
+        count--;
+        log.add("Night mafia kill, ${constructStatus(count)}");
+        count--;
+        log.add("Night killer kill, ${constructStatus(count)}");
+        if (count < mafiaCount) {
+          log.add("✅ Mafia won during night, day $day");
+          break;
+        }
+
+        amountOfVotes++;
+        count--;
+        log.add("Day $day vote kill, ${constructStatus(count)}");
+
+        if (count < mafiaCount) {
+          log.add("✅ Mafia won during day $day");
+          break;
+        }
+      }
+    } else {
+      var count = nonMafiaCount;
+
+      log.add("☀️ Day 1 ☀️");
+      amountOfVotes++;
+      count--;
+      log.add("Day 1 vote kill, ${constructStatus(count)}");
+
+      for (var day = 2; day < 99; day++) {
+        log.add("☀️ Day $day ☀️");
+
+        count--;
+        log.add("Night mafia kill, ${constructStatus(count)}");
+
+        if (count <= mafiaCount) {
+          log.add("✅ Mafia won during night, day $day");
+          break;
+        }
+
+        amountOfVotes++;
+        count--;
+        log.add("Day $day vote kill, ${constructStatus(count)}");
+
+        if (count <= mafiaCount) {
+          log.add("✅ Mafia won during day $day");
+          break;
+        }
+      }
+    }
+
+    return GameCriticalDayCalculation(amountOfVotes, log);
+  }
+
   static GameFrame _firstDayFrame(GameFrame frame, List<GamePlayer> players) {
     final lastOverride = frame.firstBackwards<GameFrameNarratorStateOverride>();
     final lastFirstSpeechFrame = frame.findBackwards<GameFrameDaySpeech>(
@@ -282,6 +418,9 @@ class GameState {
     GameFrame frame,
     List<GamePlayer> players,
   ) {
+    final allNights = frame.takeBackUntil<GameFrameNightStart>(
+      frame.findFirst(),
+    );
     final nightStart = frame.firstBackwards<GameFrameNightStart>();
 
     int? mafiaTarget;
@@ -319,14 +458,13 @@ class GameState {
       killedIndices.add(killerTarget);
     }
 
+    killedIndices.shuffle();
     final farewellFrames = frame.takeBackUntil<GameFrameDayFarewellSpeech>(
       nightStart,
     );
 
-    for (final index in killedIndices) {
-      if (!farewellFrames.any((f) => f.index == index)) {
-        return GameFrameDayFarewellSpeech(index);
-      }
+    if (farewellFrames.isEmpty && killedIndices.isNotEmpty) {
+      return GameFrameDayFarewellSpeech(killedIndices, allNights.length == 1);
     }
 
     return null;
@@ -533,6 +671,8 @@ class GameState {
         !actionFrames.any((f) => f.role == GameRole.killer)) {
       return GameFrameNightRoleAction(GameRole.killer);
     }
+
+    return null;
   }
 
   static GameResult checkForGameEnd(
