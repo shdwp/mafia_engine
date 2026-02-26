@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:mafia_engine/data/game_controller.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_timer.dart';
+import 'package:mafia_engine/data/music_service.dart';
 import 'package:mafia_engine/ui/game/game_viewmodel.dart';
 import 'package:mafia_engine/ui/game/game_widgets.dart';
+import 'package:provider/provider.dart';
 
 class BackupTimerViewModel extends ChangeNotifier {
   final GameTimer timer;
@@ -45,6 +49,308 @@ class BackupTimerWidget extends StatelessWidget {
             child: Text("10s"),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class MusicPlayerViewModel extends ChangeNotifier {
+  final MusicService _service;
+  final Function(MusicPlaylist playlistName)? onPlaylistChanged;
+  final bool showPlaylist;
+  MusicPlaylist playlist;
+
+  String get title => _service.currentTrackTitle ?? "Not playing";
+  String get progressText {
+    if (_service.currentTrackPosition == null ||
+        _service.currentTrackDuration == null) {
+      return "00:00 / 00:00";
+    }
+
+    return "${GameUILib.formatMinutesSeconds(_service.currentTrackPosition!.ceil())} / ${GameUILib.formatMinutesSeconds(_service.currentTrackDuration!.ceil())}";
+  }
+
+  bool get hasPlayback => _service.hasPlayback;
+  bool get isPaused => _service.isPaused;
+
+  ChangeNotifier get musicServiceListenable => _service.progressNotifier;
+
+  MusicPlayerViewModel({
+    required MusicService musicService,
+    required this.playlist,
+    this.showPlaylist = false,
+    this.onPlaylistChanged,
+  }) : _service = musicService {
+    if (musicService.currentPlaylist != null) {
+      playlist = musicService.currentPlaylist!;
+    }
+  }
+
+  String playlistName(MusicPlaylist playlist) {
+    switch (playlist) {
+      case MusicPlaylist.invalid:
+        return "invalid";
+      case MusicPlaylist.preparation:
+        return "Prep";
+      case MusicPlaylist.lowIntensity:
+        return "Low";
+      case MusicPlaylist.mediumIntensity:
+        return "Med";
+      case MusicPlaylist.highIntensity:
+        return "High";
+      case MusicPlaylist.special:
+        return "Spec";
+    }
+  }
+
+  int playlistCount(MusicPlaylist playlist) {
+    return _service.iterateTracksInPlaylist(playlist).length;
+  }
+
+  void togglePause() {
+    _service.togglePause();
+    notifyListeners();
+  }
+
+  void stopMusic() {
+    _service.stopWithFadeOut();
+    notifyListeners();
+  }
+
+  void startMusic() {
+    _service.startWithFadeInFromPlaylist(playlist);
+    notifyListeners();
+  }
+
+  void skipTrack() {
+    _service.skipWithCrossfade();
+    notifyListeners();
+  }
+
+  void fastForward() {
+    _service.fastForward();
+    notifyListeners();
+  }
+
+  void setPlaylist(MusicPlaylist playlist) {
+    this.playlist = playlist;
+    if (onPlaylistChanged != null) onPlaylistChanged!(playlist);
+    notifyListeners();
+  }
+
+  Iterable<MusicPlaylist> displayedPlaylists() sync* {
+    for (final playlist in MusicPlaylist.values) {
+      if (playlist == MusicPlaylist.invalid) continue;
+      if (!_service.checkPlaylistHaveSongs(playlist)) continue;
+
+      yield playlist;
+    }
+  }
+}
+
+class MusicPlayerWidget extends StatelessWidget {
+  final MusicPlayerViewModel viewModel;
+
+  const MusicPlayerWidget({super.key, required this.viewModel});
+
+  @override
+  Widget build(BuildContext context) {
+    final playlistViewModel = MusicPlayerPlaylistViewModel(
+      service: context.read(),
+      playlist: viewModel.playlist,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListenableBuilder(
+          listenable: Listenable.merge([
+            viewModel,
+            viewModel.musicServiceListenable,
+          ]),
+          builder: (context, child) {
+            final playlistButtons = <Widget>[];
+            for (final playlist in viewModel.displayedPlaylists()) {
+              final title = Text(viewModel.playlistName(playlist));
+
+              if (playlist == viewModel.playlist) {
+                playlistButtons.add(
+                  FilledButton(onPressed: () {}, child: title),
+                );
+              } else {
+                playlistButtons.add(
+                  ElevatedButton(
+                    onPressed: () {
+                      viewModel.setPlaylist(playlist);
+                      playlistViewModel.changePlaylistToDisplay(playlist);
+                    },
+                    child: title,
+                  ),
+                );
+              }
+            }
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  viewModel.title,
+                  style: TextStyle(fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  viewModel.progressText,
+                  style: TextStyle(fontSize: 24, color: Colors.grey),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FilledButton(
+                      onPressed: viewModel.hasPlayback
+                          ? () => viewModel.stopMusic()
+                          : null,
+                      child: Icon(Icons.stop),
+                    ),
+
+                    if (!viewModel.hasPlayback)
+                      FilledButton(
+                        onPressed: () => viewModel.startMusic(),
+                        child: Icon(Icons.play_arrow),
+                      ),
+
+                    if (viewModel.hasPlayback)
+                      FilledButton(
+                        onPressed: () => viewModel.togglePause(),
+                        child: Icon(
+                          viewModel.isPaused ? Icons.play_arrow : Icons.pause,
+                        ),
+                      ),
+
+                    FilledButton(
+                      onPressed: viewModel.hasPlayback
+                          ? () => viewModel.skipTrack()
+                          : null,
+                      child: Icon(Icons.skip_next),
+                    ),
+                    FilledButton(
+                      onPressed: viewModel.hasPlayback
+                          ? () => viewModel.fastForward()
+                          : null,
+                      child: Icon(Icons.fast_forward),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(spacing: 4, children: playlistButtons),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+
+        if (viewModel.showPlaylist)
+          MusicPlayerPlaylistWidget(viewModel: playlistViewModel),
+      ],
+    );
+  }
+}
+
+class MusicPlayerPlaylistViewModel extends ChangeNotifier {
+  final MusicService _service;
+  MusicPlaylist playlist;
+
+  MusicPlayerPlaylistViewModel({
+    required MusicService service,
+    required this.playlist,
+  }) : _service = service;
+
+  Iterable<MusicTrack> get displayTracks =>
+      _service.iterateTracksInPlaylist(playlist);
+
+  ChangeNotifier get musicServiceListenable => _service.progressNotifier;
+
+  void changePlaylistToDisplay(MusicPlaylist playlist) {
+    this.playlist = playlist;
+    notifyListeners();
+  }
+
+  void playTrack(MusicTrack track) {
+    _service.startTrackWithFadeIn(track);
+  }
+
+  bool isTrackCurrent(MusicTrack track) {
+    return _service.currentTrack == track;
+  }
+
+  String trackInfo(MusicTrack track) {
+    var result = "";
+
+    if (track.skipLeading != null) {
+      result += "L${track.skipLeading!.inSeconds}";
+    }
+
+    if (track.skipTrailing != null) {
+      result += "T${track.skipTrailing!.inSeconds}";
+    }
+
+    if (track.volumeAdjustment != null) {
+      result += "V${track.volumeAdjustment}";
+    }
+
+    return result;
+  }
+}
+
+class MusicPlayerPlaylistWidget extends StatelessWidget {
+  final MusicPlayerPlaylistViewModel viewModel;
+
+  const MusicPlayerPlaylistWidget({super.key, required this.viewModel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: ListenableBuilder(
+          listenable: Listenable.merge([
+            viewModel,
+            viewModel.musicServiceListenable,
+          ]),
+          builder: (context, child) => ListView.builder(
+            itemCount: viewModel.displayTracks.length,
+            itemBuilder: (context, index) {
+              final track = viewModel.displayTracks.elementAt(index);
+              return Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      track.title,
+                      style: TextStyle(
+                        fontWeight: viewModel.isTrackCurrent(track)
+                            ? FontWeight.bold
+                            : null,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    viewModel.trackInfo(track),
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  IconButton(
+                    onPressed: viewModel.isTrackCurrent(track)
+                        ? null
+                        : () => viewModel.playTrack(track),
+                    icon: Icon(Icons.play_circle),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }

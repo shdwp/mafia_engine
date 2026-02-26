@@ -2,13 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:async/async.dart';
-import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mafia_engine/data/filesystem.dart';
 import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_state.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'game_frame_tree.dart';
 
@@ -31,9 +30,17 @@ class GameLoadState {
 class GameSaveFile {
   final String name;
   final String path;
+  final String fileName;
   final DateTime modifiedDate;
+  final num frameCount;
 
-  GameSaveFile(this.name, this.modifiedDate, this.path);
+  GameSaveFile(
+    this.name,
+    this.modifiedDate,
+    this.fileName,
+    this.path,
+    this.frameCount,
+  );
 }
 
 class GameScore {
@@ -44,7 +51,8 @@ class GameScore {
       doctorSavePoints +
       priestBlockedPoints +
       donFoundSheriffPoints +
-      killerBonusPoints;
+      killerBonusPoints +
+      mafiaGuessPoints;
 
   final GamePlayer player;
 
@@ -61,9 +69,12 @@ class GameScore {
 }
 
 class GameRepository {
+  final FileSystemService _fileSystemService;
+  final GameConfigService _configService;
+
   final List<String> _playerNames = [];
 
-  GameRepository() {
+  GameRepository(this._fileSystemService, this._configService) {
     _loadPlayerNames().then(
       (value) =>
           value.isValue ? _playerNames.addAll(value.asValue!.value) : null,
@@ -102,54 +113,98 @@ class GameRepository {
 
     root.fileName = newGameFileName;
     root.gameName = "$gameName ${duplicationSuffix()}";
-    await _saveTree(frame);
+    await saveTree(frame);
     root.fileName = fileName;
     root.gameName = gameName;
     return Result.value(newGameFileName);
   }
 
-  Future undoDuplication(String name) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final path = "${directory.path}/games/$name.json";
-    final file = File(path);
-    Directory("${directory.path}/gamesBackup/").create(recursive: true);
-    await file.copy("${directory.path}/gamesBackup/$name.json");
-    await file.delete();
+  Future delete(String fileName) async {
+    await _fileSystemService.moveToBackupFolder(fileName);
   }
 
-  Future<Result<GameState>> loadGame(String path) async {
-    final frame = await _loadTree(path);
-    if (frame.isError) {
-      return frame.asError!;
-    } else {
-      return Result.value(GameState.calculate(frame.asValue!.value));
+  Future undoDuplication(String fileName) async {
+    await delete(fileName);
+  }
+
+  Future undoDeletion(String fileName) async {
+    await _fileSystemService.moveFromBackupFolder(fileName);
+  }
+
+  Future undoLastDeletion() async {
+    final backupGames = await iterateBackupGames();
+    if (!backupGames.isValue) return;
+
+    final lastBackup = backupGames.asValue?.value.firstOrNull;
+    if (lastBackup == null) return;
+    await undoDeletion(lastBackup.fileName);
+  }
+
+  Future<Result<GameState>> loadGame(GameSaveFile file) async {
+    try {
+      final frame = await _loadTree(file);
+
+      if (frame.isError) {
+        return frame.asError!;
+      } else {
+        return Result.value(GameState.calculate(frame.asValue!.value));
+      }
+    } catch (error) {
+      return Result.error(error);
     }
   }
 
   Future<Result<Iterable<GameSaveFile>>> iterateSavedGames() async {
+    return _iterateSavedGamesFolder("games");
+  }
+
+  Future<Result<Iterable<GameSaveFile>>> iterateBackupGames() async {
+    return _iterateSavedGamesFolder("gamesBackup");
+  }
+
+  Future<Result<Iterable<GameSaveFile>>> _iterateSavedGamesFolder(
+    String folder,
+  ) async {
     var result = List<GameSaveFile>.empty(growable: true);
-    final directory = await getApplicationDocumentsDirectory();
-    final dir = Directory("${directory.path}/games/");
-    if (!dir.existsSync()) return Result.value(result);
+    final dir = await _fileSystemService.openSaveGameDirectory(folder);
+    if (!await dir.exists()) return Result.value(result);
 
     await for (final entity in dir.list()) {
       if (entity is File && entity.uri.pathSegments.last.endsWith(".json")) {
-        final jsonString = await entity.readAsString();
-        final dict = json.decode(jsonString) as Map<String, dynamic>;
+        try {
+          final jsonString = await entity.readAsString();
+          final dict = json.decode(jsonString) as Map<String, dynamic>;
 
-        var name = entity.uri.pathSegments.last;
-        for (final kv in dict.entries) {
-          final state = GameLoadState(kv.value as Map<String, dynamic>);
-          if (kv.value["type"] == "GameFrameStart") {
-            final frame = GameFrameStart.fromJson(state);
-            name = frame.gameName;
-            break;
+          var name = entity.uri.pathSegments.last;
+          for (final kv in dict.entries) {
+            final state = GameLoadState(kv.value as Map<String, dynamic>);
+            if (kv.value["type"] == "GameFrameStart") {
+              final frame = GameFrameStart.fromJson(state);
+              name = frame.gameName;
+              break;
+            }
           }
-        }
 
-        result.add(
-          GameSaveFile(name, await entity.lastModified(), entity.path),
-        );
+          result.add(
+            GameSaveFile(
+              name,
+              await entity.lastModified(),
+              entity.uri.pathSegments.last,
+              entity.path,
+              dict.length,
+            ),
+          );
+        } catch (error) {
+          result.add(
+            GameSaveFile(
+              "${entity.uri.pathSegments.last} (invalid)",
+              await entity.lastModified(),
+              entity.uri.pathSegments.last,
+              entity.path,
+              0,
+            ),
+          );
+        }
       }
     }
 
@@ -157,132 +212,38 @@ class GameRepository {
     return Result.value(result);
   }
 
-  Result<GameState> moveBackward(GameFrame currentFrame) {
-    return currentFrame.previous != null
-        ? Result.value(GameState.calculate(currentFrame.previous!))
-        : Result.error(GameError.noPrevious);
-  }
-
-  Result<GameState> moveForward(GameFrame currentFrame) {
-    if (currentFrame.isDirty) {
-      return Result.error(GameError.frameDirty);
-    }
-
-    if (currentFrame.next != null) {
-      return Result.value(GameState.calculate(currentFrame.next!));
-    }
-
-    return Result.error(GameError.noNext);
-  }
-
-  Result<GameState> moveTop(GameFrame currentFrame) {
-    if (currentFrame.isDirty) {
-      return Result.error(GameError.frameDirty);
-    }
-
-    final lastFrame = currentFrame.findLast();
-    return Result.value(GameState.calculate(lastFrame));
-  }
-
-  Result<GameState> moveBottom(GameFrame currentFrame) {
-    final lastFrame = currentFrame.findFirst();
-    return Result.value(GameState.calculate(lastFrame));
-  }
-
-  Result<GameState> setTop(GameFrame currentFrame) {
-    currentFrame.next = null;
-    final lastFrame = currentFrame.findLast();
-    return Result.value(GameState.calculate(lastFrame));
-  }
-
-  Result<GameState> commitFrame(GameFrame frame) {
-    if (!frame.isDirty) return Result.error(GameError.frameNotDirty);
-    if (!frame.isValid) return Result.error(GameError.frameInvalid);
-
-    if (frame is GameFrameAddPlayers) {
-      commitPlayerNames(frame.players);
-    }
-
-    var state = GameState.calculate(frame, ignoreLast: false);
-    frame.previous?.next = frame;
-    frame.dirty = false;
-    frame.next = GameState.createNextFrame(frame, state);
-    frame.next!.previous = frame;
-
-    _saveTree(frame);
-    return Result.value(GameState.calculate(frame.next!));
-  }
-
-  bool willCommitOverwriteHistory(GameFrame frame) {
-    return frame.next != null;
-  }
-
-  bool shouldFrameBeCommited(GameFrame frame) {
-    return frame.isDirty;
-  }
-
-  Result<GameState> penalize(GameFrame frame) {
-    var newFrame = GameFrameNarratorPenalize();
-    frame.previous!.next = newFrame;
-    newFrame.next = frame;
-    newFrame.previous = frame.previous!;
-    frame.previous = newFrame;
-
-    var state = GameState.calculate(newFrame);
-    _saveTree(newFrame);
-    return Result.value(state);
-  }
-
-  Result<GameState> override(GameFrame frame) {
-    var state = GameState.calculate(frame);
-    var newFrame = GameFrameNarratorStateOverride(
-      GameFrameNarratorStateOverrideType.dayStart,
-      state.players.map((p) {
-        return (p.name, p.role, p.alive, p.penalties);
-      }).toList(),
-    );
-    frame.previous!.next = newFrame;
-    newFrame.previous = frame.previous!;
-    frame.previous = newFrame;
-
-    var newState = GameState.calculate(newFrame);
-    _saveTree(newFrame);
-    return Result.value(newState);
-  }
-
   List<GameScore> calculateScores(GameFrame frame) {
     var result = <GameScore>[];
     var state = GameState.calculate(frame, ignoreLast: false);
-    var config = GameConfigService();
 
     for (final player in state.players) {
       var score = GameScore(player);
       switch (state.gameResult) {
         case GameResult.killerWon:
           if (player.role == GameRole.killer) {
-            score.winPoints = config.killerWinPoints;
+            score.winPoints = _configService.killerWinPoints;
           }
           break;
         case GameResult.mafiaWon:
           if (player.role.isMafia) {
-            score.winPoints = config.mafiaWinPoints;
+            score.winPoints = _configService.mafiaWinPoints;
 
             if (player.alive) {
-              score.aliveBonusPoints = config.mafiaAliveWinBonusPoints;
+              score.aliveBonusPoints = _configService.mafiaAliveWinBonusPoints;
             }
           }
           break;
         case GameResult.civiliansWon:
           if (player.role.isCivilian) {
-            score.winPoints = config.civilianWinPoints;
+            score.winPoints = _configService.civilianWinPoints;
           }
           break;
         case GameResult.killerMafiaDraw:
           if (player.role.isMafia) {
-            score.winPoints = config.kmDrawMafiaPoints;
+            score.winPoints = _configService.kmDrawMafiaPoints;
           }
           if (player.role.isKiller) {
-            score.winPoints = config.kmDrawKillerPoints;
+            score.winPoints = _configService.kmDrawKillerPoints;
           }
           break;
         default:
@@ -309,9 +270,9 @@ class GameRepository {
               3 + (state.rolesInTheGame.contains(GameRole.priest) ? 1 : 0);
 
           if (guessedCorrectly >= blackTeamCount) {
-            score.mafiaGuessPoints = config.guessPointsFull;
+            score.mafiaGuessPoints = _configService.guessPointsFull;
           } else if (guessedCorrectly >= blackTeamCount / 2) {
-            score.mafiaGuessPoints = config.guessPointsHalf;
+            score.mafiaGuessPoints = _configService.guessPointsHalf;
           }
         }
       }
@@ -338,7 +299,7 @@ class GameRepository {
         }
 
         score.sheriffChecksPoints +=
-            config.sheriffFoundOpposingPlayersPoints *
+            _configService.sheriffFoundOpposingPlayersPoints *
             blackCheckedPlayers.length;
       }
 
@@ -368,10 +329,12 @@ class GameRepository {
             switch (state.players[frame.index!].role) {
               case GameRole.doctor:
               case GameRole.civilian:
-                score.doctorSavePoints += config.doctorSavedCivilianPoints;
+                score.doctorSavePoints +=
+                    _configService.doctorSavedCivilianPoints;
                 break;
               case GameRole.sheriff:
-                score.doctorSavePoints += config.doctorSavedSheriffPoints;
+                score.doctorSavePoints +=
+                    _configService.doctorSavedSheriffPoints;
                 break;
               default:
                 break;
@@ -389,19 +352,24 @@ class GameRepository {
 
           switch (state.players[frame.index!].role) {
             case GameRole.sheriff:
-              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              score.killerBonusPoints +=
+                  _configService.killerActiveRoleKillPoints;
               break;
             case GameRole.doctor:
-              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              score.killerBonusPoints +=
+                  _configService.killerActiveRoleKillPoints;
               break;
             case GameRole.mafia:
-              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              score.killerBonusPoints +=
+                  _configService.killerActiveRoleKillPoints;
               break;
             case GameRole.don:
-              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              score.killerBonusPoints +=
+                  _configService.killerActiveRoleKillPoints;
               break;
             case GameRole.priest:
-              score.killerBonusPoints += config.killerActiveRoleKillPoints;
+              score.killerBonusPoints +=
+                  _configService.killerActiveRoleKillPoints;
               break;
             default:
               break;
@@ -418,13 +386,16 @@ class GameRepository {
 
           switch (state.players[frame.index!].role) {
             case GameRole.sheriff:
-              score.priestBlockedPoints += config.priestBlockedSheriffPoints;
+              score.priestBlockedPoints +=
+                  _configService.priestBlockedSheriffPoints;
               break;
             case GameRole.doctor:
-              score.priestBlockedPoints += config.priestBlockedDoctorPoints;
+              score.priestBlockedPoints +=
+                  _configService.priestBlockedDoctorPoints;
               break;
             case GameRole.killer:
-              score.priestBlockedPoints += config.priestBlockedKilledPoints;
+              score.priestBlockedPoints +=
+                  _configService.priestBlockedKilledPoints;
               break;
             default:
               break;
@@ -447,7 +418,7 @@ class GameRepository {
         }
 
         if (foundSheriff) {
-          score.donFoundSheriffPoints = config.donFoundSheriffPoints;
+          score.donFoundSheriffPoints = _configService.donFoundSheriffPoints;
         }
       }
 
@@ -458,20 +429,12 @@ class GameRepository {
   }
 
   void _savePlayerNames(Iterable<String> names) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final path = "${directory.path}/names/names.json";
-    final file = File(path);
-
-    await file.create(recursive: true);
+    final file = await _fileSystemService.openPlayerNamesFile();
     await file.writeAsString(json.encode(names));
   }
 
   Future<Result<List<String>>> _loadPlayerNames() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final path = "${directory.path}/names/names.json";
-    final file = File(path);
-    if (!await file.exists()) return Result.value([]);
-
+    final file = await _fileSystemService.openPlayerNamesFile();
     final jsonString = await file.readAsString();
     final list = json.decode(jsonString) as List<dynamic>;
     return Result.value(list.map((k) => k.toString()).toList());
@@ -503,11 +466,11 @@ class GameRepository {
     return "dup $suffix";
   }
 
-  Future _saveTree(GameFrame frame) async {
+  Future saveTree(GameFrame frame) async {
     final root = frame.findFirst() as GameFrameStart;
-    final directory = await getApplicationDocumentsDirectory();
-    final path = "${directory.path}/games/${root.fileName}.json";
-    final file = File(path);
+    final file = await _fileSystemService.openSaveGameFile(
+      "${root.fileName}.json",
+    );
 
     GameFrame? currentFrame = root;
     var structure = <String, dynamic>{};
@@ -520,8 +483,8 @@ class GameRepository {
     await file.writeAsString(json.encode(structure));
   }
 
-  Future<Result<GameFrame>> _loadTree(String path) async {
-    final file = File(path);
+  Future<Result<GameFrame>> _loadTree(GameSaveFile saveFile) async {
+    final file = await _fileSystemService.openSaveGameFile(saveFile.fileName);
     final jsonString = await file.readAsString();
     final dict = json.decode(jsonString) as Map<String, dynamic>;
 
@@ -587,8 +550,12 @@ class GameRepository {
           result = GameFrameNightStart.fromJson(state);
           break;
 
-        case "GameFrameNightRoleAction":
-          result = GameFrameNightRoleAction.fromJson(state);
+        case "GameFrameZeroNightStart":
+          result = GameFrameZeroNightStart.fromJson(state);
+          break;
+
+        case "GameFrameDayStart":
+          result = GameFrameDayStart.fromJson(state);
           break;
 
         case "GameFrameDayFarewellSpeech":

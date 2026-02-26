@@ -1,12 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:mafia_engine/data/game_config.dart';
+import 'package:mafia_engine/data/game_controller.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
+import 'package:mafia_engine/data/music_service.dart';
+import 'package:mafia_engine/ui/game/narrator/game_narrator_widgets.dart';
+import 'package:provider/provider.dart';
 
 import '../game_viewmodel.dart';
 import '../game_widgets.dart';
 
-class GameNightStartViewModel extends GameFrameViewModel<GameFrameNightStart> {
-  GameNightStartViewModel(super.gameViewModel, super.lastFrame);
+class GameNightStartViewModel extends GameFrameViewModel<GameFrame> {
+  final GameController _controller;
+
+  GameNightStartViewModel(
+    super.gameViewModel,
+    super.lastFrame,
+    this._controller,
+  );
+
+  MusicPlaylist get musicPlaylist => _controller.playlistForFrame(current);
 }
 
 class GameScreenNightStartWidget extends StatelessWidget {
@@ -15,7 +28,47 @@ class GameScreenNightStartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text("🌙", style: TextStyle(fontSize: 72)));
+    return MusicPlayerWidget(
+      viewModel: MusicPlayerViewModel(
+        musicService: context.read(),
+        playlist: viewModel.musicPlaylist,
+        showPlaylist: true,
+      ),
+    );
+  }
+}
+
+class GameDayStartViewModel extends GameFrameViewModel<GameFrameDayStart> {
+  final GameController _controller;
+
+  GameDayStartViewModel(
+    super.gameViewModel,
+    super.lastFrame,
+    GameController controller,
+  ) : _controller = controller;
+
+  MusicPlaylist get musicPlaylist => _controller.playlistForFrame(current);
+}
+
+class GameScreenDayStartWidget extends StatelessWidget {
+  const GameScreenDayStartWidget({super.key, required this.viewModel});
+  final GameDayStartViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        children: [
+          Text("☀️", style: TextStyle(fontSize: 72)),
+          MusicPlayerWidget(
+            viewModel: MusicPlayerViewModel(
+              musicService: context.read(),
+              playlist: viewModel.musicPlaylist,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -85,6 +138,9 @@ class GameScreenNightRoleActionWidget extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       spacing: 8,
       children: [
+        GameTimerWidget(
+          timeInSeconds: context.read<GameConfigService>().nightActionTimer,
+        ),
         GamePlayerListWidget(
           players: viewModel.actionablePlayers,
           showRoles: true,

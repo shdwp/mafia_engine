@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_repository.dart';
 import 'package:mafia_engine/ui/game/game_viewmodel.dart';
@@ -120,7 +121,31 @@ class _GameScreenGameState extends State<GameScreen> {
 
           case GameFrameNightStart frame:
             frameWidget = GameScreenNightStartWidget(
-              viewModel: GameNightStartViewModel(widget.viewModel, frame),
+              viewModel: GameNightStartViewModel(
+                widget.viewModel,
+                frame,
+                context.read(),
+              ),
+            );
+            break;
+
+          case GameFrameZeroNightStart frame:
+            frameWidget = GameScreenNightStartWidget(
+              viewModel: GameNightStartViewModel(
+                widget.viewModel,
+                frame,
+                context.read(),
+              ),
+            );
+            break;
+
+          case GameFrameDayStart frame:
+            frameWidget = GameScreenDayStartWidget(
+              viewModel: GameDayStartViewModel(
+                widget.viewModel,
+                frame,
+                context.read(),
+              ),
             );
             break;
 
@@ -216,6 +241,33 @@ class _GameScreenGameState extends State<GameScreen> {
                     child: Text("Backup timer"),
                   ),
                   MenuItemButton(
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (context) => FractionallySizedBox(
+                          heightFactor: 0.75,
+                          widthFactor: 1.0,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Center(
+                              child: MusicPlayerWidget(
+                                viewModel: MusicPlayerViewModel(
+                                  musicService: context.read(),
+                                  showPlaylist: true,
+                                  playlist:
+                                      widget.viewModel.playlistForCurrentState,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    leadingIcon: Icon(Icons.play_circle),
+                    child: Text("Music player"),
+                  ),
+                  MenuItemButton(
                     onPressed: () async {
                       var repo = context.read<GameRepository>();
                       var messenger = ScaffoldMessenger.of(context);
@@ -249,7 +301,6 @@ class _GameScreenGameState extends State<GameScreen> {
                           context,
                           widget.viewModel.current,
                           () {
-                            Navigator.of(context).pop();
                             widget.viewModel.override();
                           },
                         ),
@@ -263,7 +314,6 @@ class _GameScreenGameState extends State<GameScreen> {
                           context,
                           widget.viewModel.current,
                           () {
-                            Navigator.of(context).pop();
                             widget.viewModel.penalize();
                           },
                         ),
@@ -335,12 +385,43 @@ class _GameScreenGameState extends State<GameScreen> {
                                           child: Column(
                                             spacing: 16,
                                             children: [
-                                              GameResultWidget(
-                                                result: state.gameResult,
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                spacing: 8,
+                                                children: [
+                                                  GameDayWidget(
+                                                    day: state.dayCount,
+                                                  ),
+                                                  GameResultWidget(
+                                                    result: state.gameResult,
+                                                  ),
+                                                ],
                                               ),
                                               GamePlayerCountersWidget(
                                                 state: widget.viewModel.state,
                                               ),
+                                              if (widget
+                                                  .viewModel
+                                                  .voteOn
+                                                  .isNotEmpty)
+                                                DecoratedBox(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey,
+                                                    borderRadius:
+                                                        BorderRadiusGeometry.circular(
+                                                          20,
+                                                        ),
+                                                  ),
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          8.0,
+                                                        ),
+                                                    child: Text(
+                                                      widget.viewModel.voteOn,
+                                                    ),
+                                                  ),
+                                                ),
                                               Expanded(
                                                 child: GamePlayerSelectorWidget(
                                                   players: widget
@@ -368,12 +449,19 @@ class _GameScreenGameState extends State<GameScreen> {
                                   ),
                                 ),
 
-                                Container(
-                                  alignment: Alignment.centerLeft,
-                                  child: GameResultWidget(
-                                    result: state.gameResult,
+                                if (state.gameResult != GameResult.none)
+                                  Container(
+                                    alignment: Alignment.centerLeft,
+                                    child: GameResultWidget(
+                                      result: state.gameResult,
+                                    ),
                                   ),
-                                ),
+
+                                if (state.gameResult == GameResult.none)
+                                  Container(
+                                    alignment: Alignment.centerLeft,
+                                    child: GameDayWidget(day: state.dayCount),
+                                  ),
 
                                 Visibility(
                                   visible: widget.viewModel.voteOn.isNotEmpty,

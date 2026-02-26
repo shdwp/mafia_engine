@@ -65,6 +65,7 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
                       height: 240,
                       child: GamePlayerSelectorWidget(
                         crossAxisCount: 6,
+						fontSize: 12,
                         players: viewModel.allPlayers.map(
                           (p) => GamePlayerSelectorViewModel(
                             p,

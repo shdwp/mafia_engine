@@ -123,6 +123,15 @@ class GameUILib {
       ),
     );
   }
+
+  static String formatMinutesSeconds(int timeInSecond) {
+    int sec = timeInSecond % 60;
+    int min = (timeInSecond / 60).floor();
+    String minute = min.toString().length <= 1 ? "0$min" : "$min";
+    String second = sec.toString().length <= 1 ? "0$sec" : "$sec";
+
+    return "$minute:$second";
+  }
 }
 
 class GamePlayerSelectorViewModel {
@@ -146,12 +155,14 @@ class GamePlayerSelectorWidget extends StatelessWidget {
     this.onPress,
     this.showRoles = false,
     this.crossAxisCount = 4,
+	this.fontSize = 21,
   });
 
   final Iterable<GamePlayerSelectorViewModel> players;
   final void Function(int index)? onPress;
   final bool showRoles;
   final int crossAxisCount;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -175,18 +186,18 @@ class GamePlayerSelectorWidget extends StatelessWidget {
               GamePlayerRoleWidget(
                 role: element.player.role,
                 textOverride: element.player.seatName,
-                fontSize: 21,
+                fontSize: fontSize,
               ),
               Text(
                 GameUILib.deadPrefix(element.player).trim(),
-                style: TextStyle(fontSize: 21),
+                style: TextStyle(fontSize: fontSize),
               ),
             ],
           );
         } else {
           child = Text(
             text,
-            style: TextStyle(fontSize: 21),
+            style: TextStyle(fontSize: fontSize),
             softWrap: false,
             overflow: TextOverflow.fade,
           );
@@ -286,6 +297,26 @@ class GamePlayerRoleWidget extends StatelessWidget {
       child: Text(
         textOverride.isNotEmpty ? textOverride : roleModel.name,
         style: TextStyle(color: roleModel.foreground, fontSize: fontSize),
+      ),
+    );
+  }
+}
+
+class GameDayWidget extends StatelessWidget {
+  final int day;
+
+  const GameDayWidget({super.key, required this.day});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.blue,
+        borderRadius: BorderRadiusGeometry.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Text("Day $day", style: TextStyle(color: Colors.white)),
       ),
     );
   }

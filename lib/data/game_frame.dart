@@ -79,6 +79,11 @@ class GameFrameAddPlayers extends GameFrame {
   ];
 }
 
+class GameFrameZeroNightStart extends GameFrame {
+  GameFrameZeroNightStart();
+  GameFrameZeroNightStart.fromJson(GameLoadState state);
+}
+
 class GameFrameAssignRole extends GameFrame {
   GameFrameAssignRole(this.index);
   GameFrameAssignRole.fromJson(GameLoadState state)
@@ -227,6 +232,11 @@ class GameFrameDayPlayersVotedOut extends GameFrame {
 class GameFrameNightStart extends GameFrame {
   GameFrameNightStart();
   GameFrameNightStart.fromJson(GameLoadState state);
+}
+
+class GameFrameDayStart extends GameFrame {
+  GameFrameDayStart();
+  GameFrameDayStart.fromJson(GameLoadState state);
 }
 
 class GameFrameDayFarewellSpeech extends GameFrame {

@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:mafia_engine/data/game_controller.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_frame_tree.dart';
 import 'package:mafia_engine/data/game_repository.dart';
 import 'package:mafia_engine/data/game_state.dart';
+import 'package:mafia_engine/data/music_service.dart';
 
 enum GameViewModelResult { ok, noFrame, confirmOverwrite }
 
 class GameViewModel extends ChangeNotifier {
-  GameViewModel({required GameRepository repository, required this.state})
-    : _repository = repository {
+  GameViewModel({required GameController controller, required this.state})
+    : _controller = controller {
     root = state.rootFrame;
     current = state.lastFrame;
   }
 
-  final GameRepository _repository;
+  final GameController _controller;
 
   late GameFrame root;
   late GameFrame current;
@@ -27,14 +29,19 @@ class GameViewModel extends ChangeNotifier {
 
   String get voteOn => state.playersUpForVote.map((p) => p.seatName).join(", ");
 
+  MusicPlaylist get playlistForCurrentState =>
+      _controller.playlistForFrame(current);
+
   String getInstructionTitle() {
     switch (current) {
       case GameFrameStart _:
         return "Game hasn't started yet";
       case GameFrameAddPlayers _:
         return "Adding players";
+      case GameFrameZeroNightStart _:
+        return "Night starts";
       case GameFrameAssignRole _:
-        return "Zero night starts";
+        return "Assigning roles";
       case GameFrameZeroNightMeet frame:
         switch (frame.roleGroup) {
           case GameRole.mafia:
@@ -48,6 +55,8 @@ class GameViewModel extends ChangeNotifier {
           default:
             return "ERROR";
         }
+      case GameFrameDayStart _:
+        return "Day starts";
       case GameFrameDaySpeech _:
         return "Day speech";
       case GameFrameDayVotingStart _:
@@ -92,15 +101,23 @@ class GameViewModel extends ChangeNotifier {
 
   (SystemUiOverlayStyle, Color, List<Color>) getAppBarColors() {
     if (state.isNightPhase) {
-      return (SystemUiOverlayStyle.light, Colors.white, [Colors.black, Color.fromARGB(255, 7, 42, 108)]);
+      return (
+        SystemUiOverlayStyle.light,
+        Colors.white,
+        [Colors.black, Color.fromARGB(255, 7, 42, 108)],
+      );
     } else {
-      return (SystemUiOverlayStyle.dark, Colors.black, [Colors.white, Color.fromARGB(255, 252, 229, 112)]);
+      return (
+        SystemUiOverlayStyle.dark,
+        Colors.black,
+        [Colors.white, Color.fromARGB(255, 252, 229, 112)],
+      );
     }
   }
 
   void moveForward() {
-    if (_repository.shouldFrameBeCommited(current)) {
-      var result = _repository.commitFrame(current);
+    if (_controller.shouldFrameBeCommited(current)) {
+      var result = _controller.commitFrame(current);
       if (result.isError) {
         return;
       }
@@ -109,7 +126,7 @@ class GameViewModel extends ChangeNotifier {
       current = current.next!;
       notifyListeners();
     } else {
-      var result = _repository.moveForward(current);
+      var result = _controller.moveForward(current);
       if (result.isError) {
         return;
       }
@@ -121,11 +138,11 @@ class GameViewModel extends ChangeNotifier {
   }
 
   bool willMovingCommit() {
-    return _repository.shouldFrameBeCommited(current);
+    return _controller.shouldFrameBeCommited(current);
   }
 
   void moveTop() {
-    var result = _repository.moveTop(current);
+    var result = _controller.moveTop(current);
     if (result.isError) {
       return;
     }
@@ -136,7 +153,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   void moveBottom() {
-    var result = _repository.moveBottom(current);
+    var result = _controller.moveBottom(current);
     if (result.isError) {
       return;
     }
@@ -151,7 +168,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   void moveBackward() {
-    var result = _repository.moveBackward(current);
+    var result = _controller.moveBackward(current);
     if (result.isError) {
       return;
     }
@@ -162,7 +179,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   void setTop() {
-    var result = _repository.setTop(current);
+    var result = _controller.setTop(current);
     if (result.isError) {
       return;
     }
@@ -174,7 +191,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   void override() {
-    var result = _repository.override(current);
+    var result = _controller.override(current);
     if (result.isError) {
       return;
     }
@@ -185,7 +202,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   void penalize() {
-    var result = _repository.penalize(current);
+    var result = _controller.penalize(current);
     if (result.isError) {
       return;
     }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/ui/game/game_widgets.dart';
+import 'package:provider/provider.dart';
 
 import '../game_viewmodel.dart';
 
@@ -114,9 +116,17 @@ class _GameScreenZeroNightMeetState
     extends State<GameScreenZeroNightMeetWidget> {
   @override
   Widget build(BuildContext context) {
-    return GamePlayerListWidget(
-      players: widget.viewModel.players,
-      showRoles: true,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GameTimerWidget(
+          timeInSeconds: context.read<GameConfigService>().zeroNightMeetTimer,
+        ),
+        GamePlayerListWidget(
+          players: widget.viewModel.players,
+          showRoles: true,
+        ),
+      ],
     );
   }
 }

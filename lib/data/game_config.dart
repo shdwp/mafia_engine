@@ -1,10 +1,34 @@
-class GameConfigService {
-  int get amountOfTables => 2;
-  int get maxAmountOfGames => 3;
+import 'dart:convert';
+import 'dart:io';
 
-  int get speechTimer => 60;
-  int get farewellTimer => 30;
-  int get voteDefenseTimer => 30;
+import 'package:mafia_engine/data/filesystem.dart';
+import 'package:path_provider/path_provider.dart';
+
+class GameConfigService {
+  final FileSystemService _fileSystemService;
+
+  final int _version = 3;
+
+  int maxAmountOfGames = 3;
+  int amountOfTables = 2;
+  int speechTimer = 60;
+  int nightActionTimer = 20;
+  int zeroNightMeetTimer = 20;
+  int farewellTimer = 30;
+  int voteDefenseTimer = 30;
+
+  double musicVolume = 0.5;
+  int musicCrossfadeDurationSeconds = 3;
+
+  int musicFadeInDurationSeconds = 3;
+  int musicFadeOutDurationSeconds = 3;
+
+  Duration get musicFadeInDuration =>
+      Duration(seconds: musicFadeInDurationSeconds);
+  Duration get musicFadeOutDuration =>
+      Duration(seconds: musicFadeOutDurationSeconds);
+  Duration get musicCrossfadeDuration =>
+      Duration(seconds: musicCrossfadeDurationSeconds);
 
   num get civilianWinPoints => 3;
   num get mafiaWinPoints => 3;
@@ -26,4 +50,71 @@ class GameConfigService {
 
   num get guessPointsFull => 2;
   num get guessPointsHalf => 1;
+
+  GameConfigService({required FileSystemService fileSystemService})
+    : _fileSystemService = fileSystemService {
+    _startupLoadSafe();
+  }
+
+  Future reset() async {
+    final file = await _fileSystemService.openSettingsFile();
+    await file.delete();
+
+    final emptyInstance = GameConfigService(
+      fileSystemService: _fileSystemService,
+    );
+    await emptyInstance._startupLoadSafe();
+    await _load();
+  }
+
+  Future save() async {
+    await _save();
+  }
+
+  Future _startupLoadSafe() async {
+    await _load();
+    await _save();
+  }
+
+  Future _save() async {
+    final file = await _fileSystemService.openSettingsFile();
+    await file.create(recursive: true);
+
+    final map = {
+      "version": _version,
+      "maxAmountOfGames": maxAmountOfGames,
+      "amountOfTables": amountOfTables,
+      "speechTimer": speechTimer,
+      "farewellTimer": farewellTimer,
+      "voteDefenseTimer": voteDefenseTimer,
+      "nightActionTimer": nightActionTimer,
+      "zeroNightMeetTimer": zeroNightMeetTimer,
+      "musicVolume": musicVolume,
+      "musicCrossfadeDuration": musicCrossfadeDurationSeconds,
+      "musicFadeInDurationSeconds": musicFadeInDurationSeconds,
+      "musicFadeOutDurationSeconds": musicFadeOutDurationSeconds,
+    };
+    await file.writeAsString(json.encode(map));
+  }
+
+  Future _load() async {
+    final file = await _fileSystemService.openSettingsFile();
+    if (!await file.exists()) return;
+
+    final jsonString = await file.readAsString();
+    final map = json.decode(jsonString) as Map<String, dynamic>;
+    if (map["version"] != _version) return;
+
+    maxAmountOfGames = map["maxAmountOfGames"];
+    amountOfTables = map["amountOfTables"];
+    speechTimer = map["speechTimer"];
+    farewellTimer = map["farewellTimer"];
+    voteDefenseTimer = map["voteDefenseTimer"];
+    nightActionTimer = map["nightActionTimer"];
+    zeroNightMeetTimer = map["zeroNightMeetTimer"];
+    musicVolume = map["musicVolume"];
+    musicCrossfadeDurationSeconds = map["musicCrossfadeDuration"];
+    musicFadeInDurationSeconds = map["musicFadeInDurationSeconds"];
+    musicFadeOutDurationSeconds = map["musicFadeOutDurationSeconds"];
+  }
 }

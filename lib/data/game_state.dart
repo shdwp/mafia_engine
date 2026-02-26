@@ -21,6 +21,7 @@ class GameState {
     this.lastFrame,
     this.gameResult,
     this.players,
+    this.dayCount,
     this.isNightPhase,
     this.voteMap,
     this.lastPriestBlock,
@@ -36,6 +37,7 @@ class GameState {
   final GameFrame lastFrame;
   final GameResult gameResult;
   final List<GamePlayer> players;
+  final int dayCount;
 
   final bool isNightPhase;
   final int? lastPriestBlock;
@@ -59,6 +61,7 @@ class GameState {
     int? lastPriestTarget;
     int? lastDoctorTarget;
     bool isNightPhase = true;
+    int dayCount = 0;
 
     var rootFrame = lastFrame.findFirst();
     GameFrame? frame = rootFrame;
@@ -119,6 +122,11 @@ class GameState {
       switch (frame) {
         case GameFrameNightStart _:
           isNightPhase = true;
+          break;
+
+        case GameFrameDayStart _:
+          isNightPhase = false;
+          dayCount++;
           break;
 
         case GameFrameDaySpeech _:
@@ -182,6 +190,7 @@ class GameState {
       lastFrame,
       gameEndResult,
       players,
+      dayCount,
       isNightPhase,
       voteMap,
       lastPriestTarget,
@@ -200,8 +209,12 @@ class GameState {
         next = GameFrameAddPlayers();
         break;
 
-      case GameFrameAssignRole _:
       case GameFrameAddPlayers _:
+        next = GameFrameZeroNightStart();
+        break;
+
+      case GameFrameZeroNightStart _:
+      case GameFrameAssignRole _:
         var unassigned = players.where((p) => p.role == GameRole.none);
         if (unassigned.isNotEmpty) {
           next = GameFrameAssignRole(unassigned.first.index);
@@ -212,9 +225,7 @@ class GameState {
         break;
 
       case GameFrameZeroNightMeet _:
-        next =
-            _nextZeroNightMeetFrame(last, players) ??
-            GameFrameDaySpeech(players.first.index, true);
+        next = _nextZeroNightMeetFrame(last, players) ?? GameFrameDayStart();
         break;
 
       case GameFrameDaySpeech frame:
@@ -264,17 +275,17 @@ class GameState {
         break;
 
       case GameFrameNightStart frame:
+        next = _nextNightFrame(frame, players) ?? GameFrameDayStart();
+        break;
+
+      case GameFrameDayStart frame:
         next =
-            _nextNightFrame(frame, players) ??
             _nextFarewellFrame(frame, players) ??
             _firstDayFrame(frame, players);
         break;
 
       case GameFrameNightRoleAction frame:
-        next =
-            _nextNightFrame(frame, players) ??
-            _nextFarewellFrame(frame, players) ??
-            _firstDayFrame(frame, players);
+        next = _nextNightFrame(frame, players) ?? GameFrameDayStart();
         break;
 
       case GameFrameDayFarewellSpeech frame:
@@ -422,6 +433,7 @@ class GameState {
       frame.findFirst(),
     );
     final nightStart = frame.firstBackwards<GameFrameNightStart>();
+    if (nightStart == null) return null;
 
     int? mafiaTarget;
     int? priestTarget;
@@ -683,6 +695,7 @@ class GameState {
       case GameFrameStart _:
       case GameFrameAddPlayers _:
       case GameFrameAssignRole _:
+      case GameFrameZeroNightStart _:
         return GameResult.none;
     }
 

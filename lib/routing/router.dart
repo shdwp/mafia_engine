@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mafia_engine/data/game_state.dart';
 import 'package:mafia_engine/routing/routes.dart';
 import 'package:mafia_engine/ui/home/home_screen.dart';
+import 'package:mafia_engine/ui/settings/settings_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../ui/game/game_screen.dart';
@@ -14,17 +15,29 @@ GoRouter router() => GoRouter(
     GoRoute(
       path: Routes.home,
       builder: (context, state) {
-        final viewModel = HomeViewModel(context.read());
+        final viewModel = HomeViewModel(context.read(), context.read());
         return HomeScreen(viewModel: viewModel);
       },
       routes: [
+        GoRoute(
+          path: Routes.settings,
+          builder: (context, state) {
+            return SettingsScreen(
+              viewModel: SettingsViewModel(
+                configService: context.read(),
+                fileSystemService: context.read(),
+              ),
+            );
+          },
+        ),
+
         GoRoute(
           path: Routes.game,
           builder: (context, state) {
             final gameState = state.extra as GameState;
             return GameScreen(
               viewModel: GameViewModel(
-                repository: context.read(),
+                controller: context.read(),
                 state: gameState,
               ),
             );

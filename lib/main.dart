@@ -4,6 +4,7 @@ import 'package:mafia_engine/routing/router.dart';
 import 'package:provider/provider.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(MultiProvider(providers: providers, child: const MafEngineApp()));
 }
 
