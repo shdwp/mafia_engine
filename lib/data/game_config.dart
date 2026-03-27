@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 class GameConfigService {
   final FileSystemService _fileSystemService;
 
-  final int _version = 3;
+  final int _version = 4;
 
   int maxAmountOfGames = 3;
   int amountOfTables = 2;
@@ -16,6 +16,8 @@ class GameConfigService {
   int zeroNightMeetTimer = 20;
   int farewellTimer = 30;
   int voteDefenseTimer = 30;
+
+  bool hideSensitiveInfoOnDayScreen = true;
 
   double musicVolume = 0.5;
   int musicCrossfadeDurationSeconds = 3;
@@ -89,6 +91,7 @@ class GameConfigService {
       "voteDefenseTimer": voteDefenseTimer,
       "nightActionTimer": nightActionTimer,
       "zeroNightMeetTimer": zeroNightMeetTimer,
+      "hideSensitiveInfoOnDayScreen": hideSensitiveInfoOnDayScreen,
       "musicVolume": musicVolume,
       "musicCrossfadeDuration": musicCrossfadeDurationSeconds,
       "musicFadeInDurationSeconds": musicFadeInDurationSeconds,
@@ -112,6 +115,7 @@ class GameConfigService {
     voteDefenseTimer = map["voteDefenseTimer"];
     nightActionTimer = map["nightActionTimer"];
     zeroNightMeetTimer = map["zeroNightMeetTimer"];
+    hideSensitiveInfoOnDayScreen = map["hideSensitiveInfoOnDayScreen"] ?? false;
     musicVolume = map["musicVolume"];
     musicCrossfadeDurationSeconds = map["musicCrossfadeDuration"];
     musicFadeInDurationSeconds = map["musicFadeInDurationSeconds"];

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_controller.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
@@ -12,13 +13,18 @@ import 'package:mafia_engine/data/music_service.dart';
 enum GameViewModelResult { ok, noFrame, confirmOverwrite }
 
 class GameViewModel extends ChangeNotifier {
-  GameViewModel({required GameController controller, required this.state})
-    : _controller = controller {
+  GameViewModel({
+    required GameController controller,
+    required this.state,
+    required GameConfigService configService,
+  }) : _controller = controller,
+       _configService = configService {
     root = state.rootFrame;
     current = state.lastFrame;
   }
 
   final GameController _controller;
+  final GameConfigService _configService;
 
   late GameFrame root;
   late GameFrame current;
@@ -28,6 +34,9 @@ class GameViewModel extends ChangeNotifier {
   int get frameCount => state.frameCount;
 
   String get voteOn => state.playersUpForVote.map((p) => p.seatName).join(", ");
+
+  bool get hideTeamCounters =>
+      !state.isNightPhase && _configService.hideSensitiveInfoOnDayScreen;
 
   MusicPlaylist get playlistForCurrentState =>
       _controller.playlistForFrame(current);

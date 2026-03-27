@@ -39,6 +39,7 @@ GoRouter router() => GoRouter(
               viewModel: GameViewModel(
                 controller: context.read(),
                 state: gameState,
+                configService: context.read(),
               ),
             );
           },

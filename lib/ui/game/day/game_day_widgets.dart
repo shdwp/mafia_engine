@@ -21,6 +21,12 @@ class GameDayFarewellSpeechViewModel
   Iterable<GamePlayer> get firstGuessPlayers =>
       state.players.where((p) => current.playersKilled.contains(p.index));
 
+  int? votesFor(int playerIndex) {
+    final voteMap = state.voteMap;
+    if (voteMap.containsKey(-1)) return voteMap[-1]!.length;
+    return voteMap[playerIndex]?.length;
+  }
+
   bool isGuessSelected(int playerIndex, int guessIndex) {
     return current.firstNightGuesses[playerIndex].contains(guessIndex);
   }
@@ -59,13 +65,30 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
                   GamePlayerBadgeWidget(
                     player: viewModel.players.elementAt(index),
                   ),
+                  if (viewModel.votesFor(
+                        viewModel.players.elementAt(index).index,
+                      )
+                      case final votes?)
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadiusGeometry.circular(20),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          'Votes: $votes',
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
+                      ),
+                    ),
 
                   if (viewModel.shouldShowGuess)
                     SizedBox(
                       height: 240,
                       child: GamePlayerSelectorWidget(
                         crossAxisCount: 6,
-						fontSize: 12,
+                        fontSize: 12,
                         players: viewModel.allPlayers.map(
                           (p) => GamePlayerSelectorViewModel(
                             p,
@@ -345,6 +368,12 @@ class GameDayPlayersVotedOutViewModel
 
   Iterable<GamePlayer> get players =>
       state.players.where((p) => current.playersVotedOut.contains(p.index));
+
+  int? votesFor(int playerIndex) {
+    final voteMap = state.voteMap;
+    if (voteMap.containsKey(-1)) return voteMap[-1]!.length;
+    return voteMap[playerIndex]?.length;
+  }
 }
 
 class GameScreenDayPlayersVotedOutWidget extends StatelessWidget {
@@ -362,7 +391,36 @@ class GameScreenDayPlayersVotedOutWidget extends StatelessWidget {
         GameTimerWidget(
           timeInSeconds: context.read<GameConfigService>().farewellTimer,
         ),
-        GamePlayerListWidget(players: viewModel.players, vertical: true),
+        Expanded(
+          child: ListView.separated(
+            itemCount: viewModel.players.length,
+            separatorBuilder: (context, index) => Divider(),
+            itemBuilder: (context, index) => Column(
+              children: [
+                GamePlayerBadgeWidget(
+                  player: viewModel.players.elementAt(index),
+                ),
+                if (viewModel.votesFor(
+                      viewModel.players.elementAt(index).index,
+                    )
+                    case final votes?)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadiusGeometry.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Votes: $votes',
+                        style: TextStyle(fontSize: 18, color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

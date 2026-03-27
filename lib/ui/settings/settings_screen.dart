@@ -90,6 +90,27 @@ class SettingsScreen extends StatelessWidget {
 
     widgets.add(Divider());
 
+    widgets.add(
+      Row(
+        spacing: 16,
+        children: [
+          Expanded(child: Text("Hide sensitive information on day screen")),
+          StatefulBuilder(
+            builder: (context, setState) => Checkbox(
+              value: viewModel.configService.hideSensitiveInfoOnDayScreen,
+              onChanged: (value) {
+                viewModel.configService.hideSensitiveInfoOnDayScreen =
+                    value ?? false;
+                setState(() {});
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    widgets.add(Divider());
+
     add(
       "Zero night meet time (seconds)",
       toIntSetter((v) => viewModel.configService.zeroNightMeetTimer = v),

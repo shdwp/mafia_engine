@@ -397,9 +397,15 @@ class _GameScreenGameState extends State<GameScreen> {
                                                   ),
                                                 ],
                                               ),
-                                              GamePlayerCountersWidget(
-                                                state: widget.viewModel.state,
-                                              ),
+                                              widget.viewModel.hideTeamCounters
+                                                  ? GamePlayerTotalCountWidget(
+                                                      state:
+                                                          widget.viewModel.state,
+                                                    )
+                                                  : GamePlayerCountersWidget(
+                                                      state:
+                                                          widget.viewModel.state,
+                                                    ),
                                               if (widget
                                                   .viewModel
                                                   .voteOn
@@ -443,9 +449,13 @@ class _GameScreenGameState extends State<GameScreen> {
                                         ),
                                       ),
                                     ),
-                                    child: GamePlayerCountersWidget(
-                                      state: widget.viewModel.state,
-                                    ),
+                                    child: widget.viewModel.hideTeamCounters
+                                        ? GamePlayerTotalCountWidget(
+                                            state: widget.viewModel.state,
+                                          )
+                                        : GamePlayerCountersWidget(
+                                            state: widget.viewModel.state,
+                                          ),
                                   ),
                                 ),
 

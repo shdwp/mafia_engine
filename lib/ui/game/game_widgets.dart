@@ -441,6 +441,17 @@ class GameTimerWidget extends StatefulWidget {
 
 class _GameTimerState extends State<GameTimerWidget> {
   @override
+  void initState() {
+    super.initState();
+    final timerService = context.read<GameTimer>();
+    if (!timerService.hasTimer) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        timerService.start(widget.timeInSeconds);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     var timerService = context.read<GameTimer>();
     return ListenableBuilder(
@@ -551,6 +562,20 @@ class GamePlayerCountersWidget extends StatelessWidget {
           textOverride: state.aliveCount.toString(),
         ),
       ],
+    );
+  }
+}
+
+class GamePlayerTotalCountWidget extends StatelessWidget {
+  final GameState state;
+
+  const GamePlayerTotalCountWidget({super.key, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return GamePlayerRoleWidget(
+      role: GameRole.none,
+      textOverride: state.aliveCount.toString(),
     );
   }
 }
