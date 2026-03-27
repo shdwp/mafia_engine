@@ -24,12 +24,16 @@ class GameUILib {
   static String formatPenalties(GamePlayer player) =>
       player.penalties > 0 ? " 🚨${player.penalties}" : "";
 
+  static String penaltiesPrefix(GamePlayer player) =>
+      player.penalties > 0 ? "🚨${player.penalties} " : "";
+
   static String deadPrefix(GamePlayer player) =>
       player.alive ? "" : "$deadSymbol ";
   static String deadSuffix(GamePlayer player) =>
       player.alive ? "" : " $deadSymbol";
 
   static String deadSymbol = "💀";
+  static Color deadBackgroundColor = Color.fromARGB(255, 165, 0, 0);
 
   static GameUIRoleViewModel roleViewModel(GameRole role) {
     String name;
@@ -143,6 +147,7 @@ class GamePlayerSelectorViewModel {
   });
 
   final GamePlayer player;
+  bool get alive => player.alive;
   bool available;
   bool selected;
   bool highlighted;
@@ -155,7 +160,7 @@ class GamePlayerSelectorWidget extends StatelessWidget {
     this.onPress,
     this.showRoles = false,
     this.crossAxisCount = 4,
-	this.fontSize = 21,
+    this.fontSize = 21,
   });
 
   final Iterable<GamePlayerSelectorViewModel> players;
@@ -208,7 +213,8 @@ class GamePlayerSelectorWidget extends StatelessWidget {
           children: [
             child,
             Text(
-              GameUILib.formatPlayerName(element.player),
+              GameUILib.penaltiesPrefix(element.player) +
+                  GameUILib.formatPlayerName(element.player),
               softWrap: false,
               overflow: TextOverflow.fade,
               style: TextStyle(
@@ -227,7 +233,9 @@ class GamePlayerSelectorWidget extends StatelessWidget {
             onPressed: onPressCallback,
             style: ButtonStyle(
               backgroundColor: WidgetStatePropertyAll(
-                element.highlighted ? Colors.lightGreenAccent : null,
+                element.highlighted
+                    ? Colors.lightGreenAccent
+                    : (element.alive ? null : GameUILib.deadBackgroundColor),
               ),
             ),
             child: child,
@@ -569,7 +577,8 @@ class GameScoresWidget extends StatelessWidget {
             Text(GameUILib.formatSeatName(player)),
             Expanded(
               child: Text(
-                GameUILib.formatPlayerName(player),
+                GameUILib.penaltiesPrefix(player) +
+                    GameUILib.formatPlayerName(player),
                 style: TextStyle(decoration: decoration),
               ),
             ),
