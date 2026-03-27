@@ -397,15 +397,9 @@ class _GameScreenGameState extends State<GameScreen> {
                                                   ),
                                                 ],
                                               ),
-                                              widget.viewModel.hideTeamCounters
-                                                  ? GamePlayerTotalCountWidget(
-                                                      state:
-                                                          widget.viewModel.state,
-                                                    )
-                                                  : GamePlayerCountersWidget(
-                                                      state:
-                                                          widget.viewModel.state,
-                                                    ),
+                                              GamePlayerCountersWidget(
+                                                state: widget.viewModel.state,
+                                              ),
                                               if (widget
                                                   .viewModel
                                                   .voteOn

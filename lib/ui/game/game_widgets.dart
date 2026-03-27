@@ -397,12 +397,14 @@ class GamePlayerBadgeWidget extends StatelessWidget {
   final GamePlayer player;
   final bool showRole;
   final bool showPenalties;
+  final double fontSize;
 
   const GamePlayerBadgeWidget({
     super.key,
     required this.player,
     this.showRole = false,
     this.showPenalties = true,
+    this.fontSize = 18,
   });
 
   @override
@@ -421,7 +423,7 @@ class GamePlayerBadgeWidget extends StatelessWidget {
               GameUILib.formatPenalties(player),
           overflow: TextOverflow.fade,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: fontSize,
             color: !showRole ? Colors.white : roleViewModel.foreground,
           ),
         ),

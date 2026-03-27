@@ -6,6 +6,8 @@ import 'package:mafia_engine/data/game_frame.dart';
 
 import 'game_frame_tree.dart';
 
+enum GameStateDayNextStage { playerSpeech, night, voting, invalid }
+
 class GameCriticalDayCalculation {
   final int votingAttempts;
   final List<String> log;
@@ -304,6 +306,23 @@ class GameState {
     if (next == null) return null;
     next.previous = last;
     return next;
+  }
+
+  static (GameStateDayNextStage, GamePlayer?) calculateNextDaySegment(
+    GameFrame frame,
+    GameState state,
+  ) {
+    if (state.isNightPhase) return (GameStateDayNextStage.invalid, null);
+    final next = createNextFrame(frame, state);
+    return switch (next) {
+      GameFrameDaySpeech f => (
+        GameStateDayNextStage.playerSpeech,
+        state.players[f.index],
+      ),
+      GameFrameDayVotingStart _ => (GameStateDayNextStage.voting, null),
+      GameFrameNightStart _ => (GameStateDayNextStage.night, null),
+      _ => (GameStateDayNextStage.invalid, null),
+    };
   }
 
   static GameCriticalDayCalculation calculateCriticalDay(

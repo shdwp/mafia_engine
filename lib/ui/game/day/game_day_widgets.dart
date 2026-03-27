@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
+import 'package:mafia_engine/data/game_state.dart';
 import 'package:provider/provider.dart';
 
 import '../game_viewmodel.dart';
@@ -130,6 +131,10 @@ class GameDaySpeechViewModel extends GameFrameViewModel<GameFrameDaySpeech> {
   }
 
   GamePlayer get player => state.players[current.index];
+
+  (GameStateDayNextStage, GamePlayer?) get nextStage =>
+      GameState.calculateNextDaySegment(current, state);
+
   Iterable<GamePlayerSelectorViewModel> players = List.empty();
 
   void selectForVoting(int index) {
@@ -159,7 +164,46 @@ class _GameScreenDaySpeechState extends State<GameScreenDaySpeechWidget> {
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 8,
           children: [
-            GamePlayerBadgeWidget(player: widget.viewModel.player),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 8,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                GamePlayerBadgeWidget(player: widget.viewModel.player),
+                Icon(Icons.keyboard_double_arrow_right),
+                switch (widget.viewModel.nextStage) {
+                  (GameStateDayNextStage.playerSpeech, final player?) =>
+                    GamePlayerBadgeWidget(player: player, fontSize: 12),
+                  (GameStateDayNextStage.night, _) => DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadiusGeometry.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Night',
+                        style: TextStyle(fontSize: 12, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  (GameStateDayNextStage.voting, _) => DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.lightGreen,
+                      borderRadius: BorderRadiusGeometry.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Voting',
+                        style: TextStyle(fontSize: 12, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  _ => SizedBox.shrink(),
+                },
+              ],
+            ),
             GameTimerWidget(
               timeInSeconds: context.read<GameConfigService>().speechTimer,
             ),
