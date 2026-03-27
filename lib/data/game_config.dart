@@ -8,6 +8,7 @@ class GameConfigService {
   final FileSystemService _fileSystemService;
 
   final int _version = 6;
+  int get configVersion => _version;
 
   int maxAmountOfGames = 3;
   int amountOfTables = 2;
@@ -20,8 +21,8 @@ class GameConfigService {
   bool hideSensitiveInfoOnDayScreen = true;
   bool defensiveSpeechesAlwaysAvailable = true;
 
-  double musicVolume = 0.5;
-  double timerSoundVolume = 0.8;
+  double musicVolume = 0.75;
+  double timerSoundVolume = 1;
   int musicCrossfadeDurationSeconds = 3;
 
   int musicFadeInDurationSeconds = 3;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_repository.dart';
@@ -468,6 +469,7 @@ class _GameTimerState extends State<GameTimerWidget> {
   @override
   Widget build(BuildContext context) {
     var timerService = context.read<GameTimer>();
+    var configService = context.read<GameConfigService>();
     return ListenableBuilder(
       listenable: timerService.notifier,
       builder: (context, child) => Row(
@@ -513,12 +515,13 @@ class _GameTimerState extends State<GameTimerWidget> {
                   : Icon(Icons.pause),
             ),
 
-          IconButton.outlined(
-            onPressed: () => timerService.toggleSounds(),
-            icon: timerService.soundsEnabled
-                ? Icon(Icons.volume_up)
-                : Icon(Icons.volume_off),
-          ),
+          if (configService.timerSoundVolume > 0)
+            IconButton.outlined(
+              onPressed: () => timerService.toggleSounds(),
+              icon: timerService.soundsEnabled
+                  ? Icon(Icons.volume_up)
+                  : Icon(Icons.volume_off),
+            ),
         ],
       ),
     );

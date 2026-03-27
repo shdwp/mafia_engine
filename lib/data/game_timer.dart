@@ -95,7 +95,9 @@ class GameTimer {
     final player = _soundPlayers[remaining];
     if (player == null) return;
 
-    player.setVolume(_configService.timerSoundVolume);
-    player.seek(Duration.zero).then((_) => player.play());
+    if (_configService.timerSoundVolume > 0) {
+      player.setVolume(_configService.timerSoundVolume);
+      player.seek(Duration.zero).then((_) => player.play());
+    }
   }
 }

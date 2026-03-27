@@ -123,7 +123,7 @@ class GameState {
 
       switch (frame) {
         case GameFrameNightStart _:
-          isNightPhase = true;
+          isNightPhase = false;
           break;
 
         case GameFrameDayStart _:
@@ -133,6 +133,10 @@ class GameState {
 
         case GameFrameDaySpeech _:
           isNightPhase = false;
+          break;
+
+        case GameFrameNightRoleAction _:
+          isNightPhase = true;
           break;
 
         case GameFrameDayFarewellSpeech frame:

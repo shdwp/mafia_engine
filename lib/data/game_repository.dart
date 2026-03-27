@@ -262,8 +262,9 @@ class GameRepository {
           num guessedCorrectly = 0;
           for (final guessIndex
               in firstNightFarewell!.firstNightGuesses[guessIndex]) {
-            if (state.players[guessIndex].role.isMafia) {}
-            guessedCorrectly++;
+            if (state.players[guessIndex].role.isMafia) {
+              guessedCorrectly++;
+            }
           }
 
           final blackTeamCount =
@@ -442,7 +443,12 @@ class GameRepository {
 
     bool inNight = false;
     bool hasNight = false;
-    int? priestIndex, mafiaIndex, donIndex, sheriffIndex, doctorIndex, killerIndex;
+    int? priestIndex,
+        mafiaIndex,
+        donIndex,
+        sheriffIndex,
+        doctorIndex,
+        killerIndex;
 
     GameFrame? current = frame.findFirst();
     while (current != null) {
@@ -511,14 +517,19 @@ class GameRepository {
     if (farewellFrame == null) return [];
 
     final guesses = farewellFrame.firstNightGuesses;
-    final maxGuesses = guesses.fold(0, (max, g) => g.length > max ? g.length : max);
+    final maxGuesses = guesses.fold(
+      0,
+      (max, g) => g.length > max ? g.length : max,
+    );
 
     final List<List<String>> rows = [];
     for (int row = 0; row < maxGuesses; row++) {
       final List<String> rowData = [];
       for (int col = 0; col < guesses.length; col++) {
         final list = guesses[col];
-        rowData.add(row < list.length ? GamePlayer.seatNameFromIndex(list[row]) : '');
+        rowData.add(
+          row < list.length ? GamePlayer.seatNameFromIndex(list[row]) : '',
+        );
       }
       rows.add(rowData);
     }
