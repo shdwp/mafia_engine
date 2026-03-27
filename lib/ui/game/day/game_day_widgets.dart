@@ -55,6 +55,7 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
       children: [
         GameTimerWidget(
           timeInSeconds: context.read<GameConfigService>().farewellTimer,
+          playSounds: true,
         ),
 
         ListenableBuilder(
@@ -114,8 +115,13 @@ class GameDaySpeechViewModel extends GameFrameViewModel<GameFrameDaySpeech> {
 
   GamePlayer get player => state.players[current.index];
 
-  (GameStateDayNextStage, GamePlayer?) get nextStage =>
-      GameState.calculateNextDaySegment(current, state);
+  (GameStateDayNextStage, GamePlayer?) nextStage(
+    bool defensiveSpeechesAlwaysAvailable,
+  ) => GameState.calculateNextDaySegment(
+    current,
+    state,
+    defensiveSpeechesAlwaysAvailable: defensiveSpeechesAlwaysAvailable,
+  );
 
   Iterable<GamePlayerSelectorViewModel> players = List.empty();
 
@@ -153,7 +159,11 @@ class _GameScreenDaySpeechState extends State<GameScreenDaySpeechWidget> {
               children: [
                 GamePlayerBadgeWidget(player: widget.viewModel.player),
                 Icon(Icons.keyboard_double_arrow_right),
-                switch (widget.viewModel.nextStage) {
+                switch (widget.viewModel.nextStage(
+                  context
+                      .read<GameConfigService>()
+                      .defensiveSpeechesAlwaysAvailable,
+                )) {
                   (GameStateDayNextStage.playerSpeech, final player?) =>
                     GamePlayerBadgeWidget(player: player, fontSize: 12),
                   (GameStateDayNextStage.night, _) => DecoratedBox(
@@ -188,6 +198,7 @@ class _GameScreenDaySpeechState extends State<GameScreenDaySpeechWidget> {
             ),
             GameTimerWidget(
               timeInSeconds: context.read<GameConfigService>().speechTimer,
+              playSounds: true,
             ),
           ],
         ),
@@ -269,6 +280,7 @@ class GameScreenDayPlayerVotingSpeechWidget extends StatelessWidget {
             GamePlayerBadgeWidget(player: viewModel.player),
             GameTimerWidget(
               timeInSeconds: context.read<GameConfigService>().voteDefenseTimer,
+              playSounds: true,
             ),
           ],
         ),
@@ -416,6 +428,7 @@ class GameScreenDayPlayersVotedOutWidget extends StatelessWidget {
       children: [
         GameTimerWidget(
           timeInSeconds: context.read<GameConfigService>().farewellTimer,
+          playSounds: true,
         ),
         Expanded(
           child: ListView.separated(

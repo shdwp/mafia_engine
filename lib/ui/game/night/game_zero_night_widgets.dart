@@ -121,6 +121,7 @@ class _GameScreenZeroNightMeetState
       children: [
         GameTimerWidget(
           timeInSeconds: context.read<GameConfigService>().zeroNightMeetTimer,
+          playSounds: false,
         ),
         GamePlayerListWidget(
           players: widget.viewModel.players,

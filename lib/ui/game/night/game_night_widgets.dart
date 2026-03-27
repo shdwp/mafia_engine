@@ -140,6 +140,7 @@ class GameScreenNightRoleActionWidget extends StatelessWidget {
       children: [
         GameTimerWidget(
           timeInSeconds: context.read<GameConfigService>().nightActionTimer,
+          playSounds: false,
         ),
         GamePlayerListWidget(
           players: viewModel.actionablePlayers,

@@ -434,8 +434,17 @@ class GamePlayerBadgeWidget extends StatelessWidget {
 
 class GameTimerWidget extends StatefulWidget {
   final int timeInSeconds;
+  final bool playSounds;
+  final bool autoStart;
+  final bool autoRestart;
 
-  const GameTimerWidget({super.key, required this.timeInSeconds});
+  const GameTimerWidget({
+    super.key,
+    required this.timeInSeconds,
+    required this.playSounds,
+    this.autoStart = true,
+    this.autoRestart = false,
+  });
 
   @override
   State<StatefulWidget> createState() => _GameTimerState();
@@ -446,9 +455,12 @@ class _GameTimerState extends State<GameTimerWidget> {
   void initState() {
     super.initState();
     final timerService = context.read<GameTimer>();
-    if (!timerService.hasTimer) {
+
+    if (!widget.playSounds) timerService.setSoundsEnabled(false);
+
+    if ((!timerService.hasTimer && widget.autoStart) || widget.autoRestart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        timerService.start(widget.timeInSeconds);
+        timerService.start(widget.timeInSeconds, playSounds: widget.playSounds);
       });
     }
   }
@@ -466,7 +478,10 @@ class _GameTimerState extends State<GameTimerWidget> {
             onPressed: timerService.hasTimer
                 ? () {
                     if (!timerService.isPaused) {
-                      timerService.start(widget.timeInSeconds);
+                      timerService.start(
+                        widget.timeInSeconds,
+                        playSounds: widget.playSounds,
+                      );
                     } else {
                       timerService.stop();
                     }
@@ -483,7 +498,10 @@ class _GameTimerState extends State<GameTimerWidget> {
 		  */
           if (!timerService.hasTimer)
             IconButton.filled(
-              onPressed: () => timerService.start(widget.timeInSeconds),
+              onPressed: () => timerService.start(
+                widget.timeInSeconds,
+                playSounds: widget.playSounds,
+              ),
               icon: Icon(Icons.play_arrow),
             ),
 
@@ -494,6 +512,13 @@ class _GameTimerState extends State<GameTimerWidget> {
                   ? Icon(Icons.play_arrow)
                   : Icon(Icons.pause),
             ),
+
+          IconButton.outlined(
+            onPressed: () => timerService.toggleSounds(),
+            icon: timerService.soundsEnabled
+                ? Icon(Icons.volume_up)
+                : Icon(Icons.volume_off),
+          ),
         ],
       ),
     );

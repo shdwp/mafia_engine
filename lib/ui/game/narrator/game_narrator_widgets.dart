@@ -17,7 +17,7 @@ class BackupTimerViewModel extends ChangeNotifier {
 
   void setTimeInSeconds(int seconds) {
     timeInSeconds = seconds;
-    timer.start(timeInSeconds);
+    timer.start(timeInSeconds, playSounds: false);
     notifyListeners();
   }
 }
@@ -35,7 +35,11 @@ class BackupTimerWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 8.0,
         children: [
-          GameTimerWidget(timeInSeconds: viewModel.timeInSeconds),
+          GameTimerWidget(
+            timeInSeconds: viewModel.timeInSeconds,
+            playSounds: false,
+            autoStart: false,
+          ),
           FilledButton(
             onPressed: () => viewModel.setTimeInSeconds(60),
             child: Text("60s"),
@@ -43,6 +47,10 @@ class BackupTimerWidget extends StatelessWidget {
           FilledButton(
             onPressed: () => viewModel.setTimeInSeconds(30),
             child: Text("30s"),
+          ),
+          FilledButton(
+            onPressed: () => viewModel.setTimeInSeconds(30),
+            child: Text("20s"),
           ),
           FilledButton(
             onPressed: () => viewModel.setTimeInSeconds(10),

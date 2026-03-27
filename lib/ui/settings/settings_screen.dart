@@ -109,7 +109,24 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
 
-    widgets.add(Divider());
+    widgets.add(
+      Row(
+        spacing: 16,
+        children: [
+          Expanded(child: Text("Defensive speeches always available")),
+          StatefulBuilder(
+            builder: (context, setState) => Checkbox(
+              value: viewModel.configService.defensiveSpeechesAlwaysAvailable,
+              onChanged: (value) {
+                viewModel.configService.defensiveSpeechesAlwaysAvailable =
+                    value ?? true;
+                setState(() {});
+              },
+            ),
+          ),
+        ],
+      ),
+    );
 
     add(
       "Zero night meet time (seconds)",
@@ -143,6 +160,14 @@ class SettingsScreen extends StatelessWidget {
     );
 
     widgets.add(Divider());
+    add(
+      "Timer sound volume (0-100)",
+      percentageAsFractionSetter(
+        (v) => viewModel.configService.timerSoundVolume = v,
+      ),
+      (viewModel.configService.timerSoundVolume * 100).toInt().toString(),
+    );
+
     add(
       "Music volume (0-100)",
       percentageAsFractionSetter(

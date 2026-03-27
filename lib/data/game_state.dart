@@ -203,7 +203,11 @@ class GameState {
     );
   }
 
-  static GameFrame? createNextFrame(GameFrame last, GameState state) {
+  static GameFrame? createNextFrame(
+    GameFrame last,
+    GameState state, {
+    bool defensiveSpeechesAlwaysAvailable = true,
+  }) {
     GameFrame? next;
     var players = state.players;
     switch (last) {
@@ -254,7 +258,12 @@ class GameState {
         break;
 
       case GameFrameDayVotingStart frame:
-        next = _nextVotingSpeechFrame(frame, players)!;
+        final isRepeatedVote = frame.previousVoteIndexes.isNotEmpty;
+        if (defensiveSpeechesAlwaysAvailable || isRepeatedVote) {
+          next = _nextVotingSpeechFrame(frame, players)!;
+        } else {
+          next = _nextVotingFrame(frame, players) ?? GameFrameNightStart();
+        }
         break;
 
       case GameFrameDayPlayerVotingSpeech frame:
@@ -310,10 +319,15 @@ class GameState {
 
   static (GameStateDayNextStage, GamePlayer?) calculateNextDaySegment(
     GameFrame frame,
-    GameState state,
-  ) {
+    GameState state, {
+    bool defensiveSpeechesAlwaysAvailable = true,
+  }) {
     if (state.isNightPhase) return (GameStateDayNextStage.invalid, null);
-    final next = createNextFrame(frame, state);
+    final next = createNextFrame(
+      frame,
+      state,
+      defensiveSpeechesAlwaysAvailable: defensiveSpeechesAlwaysAvailable,
+    );
     return switch (next) {
       GameFrameDaySpeech f => (
         GameStateDayNextStage.playerSpeech,

@@ -1,4 +1,5 @@
 import 'package:async/async.dart';
+import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_frame_tree.dart';
 import 'package:mafia_engine/data/game_repository.dart';
@@ -8,12 +9,15 @@ import 'package:mafia_engine/data/music_service.dart';
 class GameController {
   final GameRepository _repository;
   final MusicService _musicService;
+  final GameConfigService _configService;
 
   GameController({
     required GameRepository repository,
     required MusicService musicService,
+    required GameConfigService configService,
   }) : _repository = repository,
-       _musicService = musicService;
+       _musicService = musicService,
+       _configService = configService;
 
   Result<GameState> moveBackward(GameFrame currentFrame) {
     return currentFrame.previous != null
@@ -64,7 +68,12 @@ class GameController {
     var state = GameState.calculate(frame, ignoreLast: false);
     frame.previous?.next = frame;
     frame.dirty = false;
-    frame.next = GameState.createNextFrame(frame, state);
+    frame.next = GameState.createNextFrame(
+      frame,
+      state,
+      defensiveSpeechesAlwaysAvailable:
+          _configService.defensiveSpeechesAlwaysAvailable,
+    );
     frame.next!.previous = frame;
 
     _repository.saveTree(frame);

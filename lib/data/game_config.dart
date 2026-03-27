@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 class GameConfigService {
   final FileSystemService _fileSystemService;
 
-  final int _version = 4;
+  final int _version = 6;
 
   int maxAmountOfGames = 3;
   int amountOfTables = 2;
@@ -18,8 +18,10 @@ class GameConfigService {
   int voteDefenseTimer = 30;
 
   bool hideSensitiveInfoOnDayScreen = true;
+  bool defensiveSpeechesAlwaysAvailable = true;
 
   double musicVolume = 0.5;
+  double timerSoundVolume = 0.8;
   int musicCrossfadeDurationSeconds = 3;
 
   int musicFadeInDurationSeconds = 3;
@@ -92,7 +94,9 @@ class GameConfigService {
       "nightActionTimer": nightActionTimer,
       "zeroNightMeetTimer": zeroNightMeetTimer,
       "hideSensitiveInfoOnDayScreen": hideSensitiveInfoOnDayScreen,
+      "defensiveSpeechesAlwaysAvailable": defensiveSpeechesAlwaysAvailable,
       "musicVolume": musicVolume,
+      "timerSoundVolume": timerSoundVolume,
       "musicCrossfadeDuration": musicCrossfadeDurationSeconds,
       "musicFadeInDurationSeconds": musicFadeInDurationSeconds,
       "musicFadeOutDurationSeconds": musicFadeOutDurationSeconds,
@@ -116,7 +120,10 @@ class GameConfigService {
     nightActionTimer = map["nightActionTimer"];
     zeroNightMeetTimer = map["zeroNightMeetTimer"];
     hideSensitiveInfoOnDayScreen = map["hideSensitiveInfoOnDayScreen"] ?? false;
+    defensiveSpeechesAlwaysAvailable =
+        map["defensiveSpeechesAlwaysAvailable"] ?? true;
     musicVolume = map["musicVolume"];
+    timerSoundVolume = map["timerSoundVolume"] ?? 0.8;
     musicCrossfadeDurationSeconds = map["musicCrossfadeDuration"];
     musicFadeInDurationSeconds = map["musicFadeInDurationSeconds"];
     musicFadeOutDurationSeconds = map["musicFadeOutDurationSeconds"];
