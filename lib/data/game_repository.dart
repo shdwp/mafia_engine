@@ -428,6 +428,206 @@ class GameRepository {
     return result;
   }
 
+  List<List<String>> exportNightActionsToSheets(GameFrame frame) {
+    String seatName(int? index) =>
+        index != null ? GamePlayer.seatNameFromIndex(index) : '';
+
+    // 6 rows, one per role: priest, mafia, don, sheriff, doctor, killer
+    final List<String> priestRow = [];
+    final List<String> mafiaRow = [];
+    final List<String> donRow = [];
+    final List<String> sheriffRow = [];
+    final List<String> doctorRow = [];
+    final List<String> killerRow = [];
+
+    bool inNight = false;
+    bool hasNight = false;
+    int? priestIndex, mafiaIndex, donIndex, sheriffIndex, doctorIndex, killerIndex;
+
+    GameFrame? current = frame.findFirst();
+    while (current != null) {
+      switch (current) {
+        case GameFrameNightStart _:
+          inNight = true;
+          priestIndex = null;
+          mafiaIndex = null;
+          donIndex = null;
+          sheriffIndex = null;
+          doctorIndex = null;
+          killerIndex = null;
+        case GameFrameNightRoleAction f:
+          if (inNight) {
+            switch (f.role) {
+              case GameRole.priest:
+                priestIndex = f.index;
+              case GameRole.mafia:
+                mafiaIndex = f.index;
+              case GameRole.don:
+                donIndex = f.index;
+              case GameRole.sheriff:
+                sheriffIndex = f.index;
+              case GameRole.doctor:
+                doctorIndex = f.index;
+              case GameRole.killer:
+                killerIndex = f.index;
+              default:
+                break;
+            }
+          }
+        case GameFrameDayStart _:
+          if (inNight) {
+            if (hasNight) {
+              priestRow.addAll(['', '', '', '']);
+              mafiaRow.addAll(['', '', '', '']);
+              donRow.addAll(['', '', '', '']);
+              sheriffRow.addAll(['', '', '', '']);
+              doctorRow.addAll(['', '', '', '']);
+              killerRow.addAll(['', '', '', '']);
+            }
+            priestRow.add(seatName(priestIndex));
+            mafiaRow.add(seatName(mafiaIndex));
+            donRow.add(seatName(donIndex));
+            sheriffRow.add(seatName(sheriffIndex));
+            doctorRow.add(seatName(doctorIndex));
+            killerRow.add(seatName(killerIndex));
+            hasNight = true;
+            inNight = false;
+          }
+        default:
+          break;
+      }
+      if (current == frame) break;
+      current = current.next;
+    }
+
+    if (!hasNight) return [];
+    return [priestRow, mafiaRow, donRow, sheriffRow, doctorRow, killerRow];
+  }
+
+  List<List<String>> exportFirstNightGuessesToSheet(GameFrame frame) {
+    final farewellFrame = frame.findBackwards<GameFrameDayFarewellSpeech>(
+      (f) => f.firstNight,
+    );
+    if (farewellFrame == null) return [];
+
+    final guesses = farewellFrame.firstNightGuesses;
+    final maxGuesses = guesses.fold(0, (max, g) => g.length > max ? g.length : max);
+
+    final List<List<String>> rows = [];
+    for (int row = 0; row < maxGuesses; row++) {
+      final List<String> rowData = [];
+      for (int col = 0; col < guesses.length; col++) {
+        final list = guesses[col];
+        rowData.add(row < list.length ? GamePlayer.seatNameFromIndex(list[row]) : '');
+      }
+      rows.add(rowData);
+    }
+    return rows;
+  }
+
+  List<List<String>> exportDayActionsToSheet(GameFrame frame) {
+    final state = GameState.calculate(frame, ignoreLast: false);
+    final players = state.players;
+
+    final List<Map<int, int?>> dailyNominees = [];
+    final List<Map<int, int>> dailyVotes = [];
+    final List<Map<int, int>> dailyAllLeavingVotes = [];
+    final List<bool?> dailyAllLeavingResults = [];
+
+    Map<int, int?> currentNominees = {};
+    Map<int, int> currentVotes = {};
+    Map<int, int> currentAllLeavingVotes = {};
+    bool inDay = false;
+    bool? currentAllLeavingResult;
+    Set<int> currentAllLeavingPlayers = {};
+
+    GameFrame? current = frame.findFirst();
+    while (current != null) {
+      switch (current) {
+        case GameFrameDayStart _:
+          inDay = true;
+          currentNominees = {};
+          currentVotes = {};
+          currentAllLeavingVotes = {};
+          currentAllLeavingResult = null;
+          currentAllLeavingPlayers = {};
+        case GameFrameDaySpeech f:
+          if (inDay) currentNominees[f.index] = f.putUpForVoteIndex;
+        case GameFrameDayVoteOnPlayerLeaving f:
+          if (inDay) currentVotes[f.playerToVoteFor] = f.voteCount;
+        case GameFrameDayVoteOnAllLeaving f:
+          if (inDay) {
+            for (final playerIndex in f.playersToVoteFor) {
+              currentAllLeavingVotes[playerIndex] = f.voteCount;
+            }
+            currentAllLeavingResult = false;
+            currentAllLeavingPlayers = f.playersToVoteFor.toSet();
+          }
+        case GameFrameDayPlayersVotedOut f:
+          if (inDay && currentAllLeavingResult != null) {
+            final votedOut = f.playersVotedOut.toSet();
+            if (votedOut.containsAll(currentAllLeavingPlayers) &&
+                currentAllLeavingPlayers.containsAll(votedOut)) {
+              currentAllLeavingResult = true;
+            }
+          }
+        case GameFrameNightStart _:
+          if (inDay) {
+            dailyNominees.add(currentNominees);
+            dailyVotes.add(currentVotes);
+            dailyAllLeavingVotes.add(currentAllLeavingVotes);
+            dailyAllLeavingResults.add(currentAllLeavingResult);
+            inDay = false;
+          }
+        default:
+          break;
+      }
+      if (current == frame) break;
+      current = current.next;
+    }
+
+    final List<List<String>> rows = [];
+    for (final player in players) {
+      final List<String> row = [
+        player.name,
+        switch (player.role) {
+          GameRole.civilian => 'Мирний',
+          GameRole.mafia => 'Мафія',
+          GameRole.don => 'Дон',
+          GameRole.sheriff => 'Шериф',
+          GameRole.doctor => 'Лікар',
+          GameRole.priest => 'Священик',
+          GameRole.killer => 'Кіллер',
+          GameRole.none => '',
+        },
+        player.penalties.toString(),
+      ];
+      for (int day = 0; day < dailyNominees.length; day++) {
+        final nomineeIndex = dailyNominees[day][player.index];
+        final nomineeName = nomineeIndex != null
+            ? players[nomineeIndex].seatName
+            : '';
+        final votes = nomineeIndex != null
+            ? (dailyVotes[day][nomineeIndex]?.toString() ?? '-')
+            : '';
+        final allLeavingVotes = nomineeIndex != null
+            ? (dailyAllLeavingVotes[day][nomineeIndex]?.toString() ?? '-')
+            : '';
+        final allLeavingResult = player.index == 8
+            ? switch (dailyAllLeavingResults[day]) {
+                true => 'Leave',
+                false => 'Stay',
+                null => '',
+              }
+            : '';
+        row.addAll([nomineeName, votes, allLeavingVotes, allLeavingResult, '']);
+      }
+      rows.add(row);
+    }
+
+    return rows;
+  }
+
   void _savePlayerNames(Iterable<String> names) async {
     final file = await _fileSystemService.openPlayerNamesFile();
     await file.writeAsString(json.encode(names));

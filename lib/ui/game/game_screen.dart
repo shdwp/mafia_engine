@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_repository.dart';
@@ -217,6 +218,24 @@ class _GameScreenGameState extends State<GameScreen> {
 
                     leadingIcon: Icon(Icons.score),
                     child: Text("Calculate scores"),
+                  ),
+                  MenuItemButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => Dialog(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: ExportToSheetsWidget(
+                              frame: widget.viewModel.current,
+                              repository: context.read<GameRepository>(),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    leadingIcon: Icon(Icons.table_chart),
+                    child: Text("Export to Sheets"),
                   ),
                   MenuItemButton(
                     onPressed: () {
@@ -564,6 +583,72 @@ class _GameScreenGameState extends State<GameScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class ExportToSheetsWidget extends StatefulWidget {
+  const ExportToSheetsWidget({super.key, required this.frame, required this.repository});
+  final GameFrame frame;
+  final GameRepository repository;
+
+  @override
+  State<ExportToSheetsWidget> createState() => _ExportToSheetsWidgetState();
+}
+
+class _ExportToSheetsWidgetState extends State<ExportToSheetsWidget> {
+  late final String _dayActionsText;
+  late final String _nightActionsText;
+  late final String _firstNightGuessesText;
+
+  @override
+  void initState() {
+    super.initState();
+    _dayActionsText = widget.repository
+        .exportDayActionsToSheet(widget.frame)
+        .map((row) => row.join('\t'))
+        .join('\n');
+    _nightActionsText = widget.repository
+        .exportNightActionsToSheets(widget.frame)
+        .map((row) => row.join('\t'))
+        .join('\n');
+    _firstNightGuessesText = widget.repository
+        .exportFirstNightGuessesToSheet(widget.frame)
+        .map((row) => row.join('\t'))
+        .join('\n');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.bodySmall;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FilledButton.icon(
+          onPressed: () => Clipboard.setData(ClipboardData(text: _dayActionsText)),
+          icon: Icon(Icons.copy),
+          label: Text('Copy day actions'),
+        ),
+        const SizedBox(height: 4),
+        Text('Put the cursor on the first player name and paste', style: labelStyle),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: () => Clipboard.setData(ClipboardData(text: _nightActionsText)),
+          icon: Icon(Icons.copy),
+          label: Text('Copy night actions'),
+        ),
+        const SizedBox(height: 4),
+        Text('Put the cursor on the first Priest action and paste', style: labelStyle),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: () => Clipboard.setData(ClipboardData(text: _firstNightGuessesText)),
+          icon: Icon(Icons.copy),
+          label: Text('Copy first night guesses'),
+        ),
+        const SizedBox(height: 4),
+        Text('Put the cursor on first guess field and paste', style: labelStyle),
+      ],
     );
   }
 }

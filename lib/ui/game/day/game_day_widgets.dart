@@ -66,24 +66,6 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
                   GamePlayerBadgeWidget(
                     player: viewModel.players.elementAt(index),
                   ),
-                  if (viewModel.votesFor(
-                        viewModel.players.elementAt(index).index,
-                      )
-                      case final votes?)
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadiusGeometry.circular(20),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          'Votes: $votes',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
-                      ),
-                    ),
-
                   if (viewModel.shouldShowGuess)
                     SizedBox(
                       height: 240,
