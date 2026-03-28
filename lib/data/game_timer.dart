@@ -97,7 +97,10 @@ class GameTimer {
 
     if (_configService.timerSoundVolume > 0) {
       player.setVolume(_configService.timerSoundVolume);
-      player.seek(Duration.zero).then((_) => player.play());
+      player.seek(Duration.zero).then((_) async {
+        await Future.delayed(Duration(seconds: 1));
+        player.play();
+      });
     }
   }
 }
