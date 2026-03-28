@@ -18,7 +18,7 @@ class SettingsViewModel extends ChangeNotifier {
       notifyListeners();
     });
     PackageInfo.fromPlatform().then((info) {
-      appVersion = info.version;
+      appVersion = "${info.version}+${info.buildNumber}";
       notifyListeners();
     });
   }

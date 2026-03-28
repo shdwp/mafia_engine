@@ -49,7 +49,7 @@ class BackupTimerWidget extends StatelessWidget {
             child: Text("30s"),
           ),
           FilledButton(
-            onPressed: () => viewModel.setTimeInSeconds(30),
+            onPressed: () => viewModel.setTimeInSeconds(20),
             child: Text("20s"),
           ),
           FilledButton(
