@@ -461,8 +461,7 @@ class _GameTimerState extends State<GameTimerWidget> {
     super.initState();
     final timerService = context.read<GameTimer>();
 
-    if (!widget.playSounds) timerService.setSoundsEnabled(false);
-
+    timerService.setSoundsEnabled(widget.playSounds);
     if ((!timerService.hasTimer && widget.autoStart) || widget.autoRestart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         timerService.start(widget.timeInSeconds, playSounds: widget.playSounds);

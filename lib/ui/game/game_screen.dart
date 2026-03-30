@@ -815,8 +815,8 @@ class _GameOverviewPopupWidgetState extends State<GameOverviewPopupWidget> {
   List<Widget> _buildLogEntries(List<GameLogEntry> entries) =>
       entries.map(_buildLogEntry).toList();
 
-  static const _dayBg = Color(0xffffffff);
-  static const _nightBg = Color(0xFF333333);
+  static const _dayBg = Color(0xffffffdd);
+  static const _nightBg = Color(0xFF444444);
   static const _nightFg = Colors.white;
 
   Widget _buildLogEntry(GameLogEntry entry) {
@@ -860,7 +860,24 @@ class _GameOverviewPopupWidgetState extends State<GameOverviewPopupWidget> {
                   color: _nightFg,
                 ),
               ),
-              if (e.actor != null)
+              if (e.role == GameRole.mafia)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: GameUILib.roleViewModel(GameRole.mafia).background,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      'Mafia',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: GameUILib.roleViewModel(GameRole.mafia).foreground,
+                      ),
+                    ),
+                  ),
+                )
+              else if (e.actor != null)
                 GamePlayerBadgeWidget(
                   player: e.actor!,
                   showRole: true,

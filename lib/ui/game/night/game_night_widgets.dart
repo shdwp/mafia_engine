@@ -28,12 +28,22 @@ class GameScreenNightStartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MusicPlayerWidget(
-      viewModel: MusicPlayerViewModel(
-        musicService: context.read(),
-        playlist: viewModel.musicPlaylist,
-        showPlaylist: true,
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GameTimerWidget(
+          timeInSeconds: context.read<GameConfigService>().nightActionTimer,
+          playSounds: false,
+          autoStart: false,
+        ),
+        MusicPlayerWidget(
+          viewModel: MusicPlayerViewModel(
+            musicService: context.read(),
+            playlist: viewModel.musicPlaylist,
+            showPlaylist: true,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -58,8 +68,14 @@ class GameScreenDayStartWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text("☀️", style: TextStyle(fontSize: 72)),
+          GameTimerWidget(
+            timeInSeconds: context.read<GameConfigService>().speechTimer,
+            playSounds: false,
+            autoStart: false,
+          ),
           MusicPlayerWidget(
             viewModel: MusicPlayerViewModel(
               musicService: context.read(),
