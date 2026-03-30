@@ -52,7 +52,8 @@ class GameScore {
       priestBlockedPoints +
       donFoundSheriffPoints +
       killerBonusPoints +
-      mafiaGuessPoints;
+      mafiaGuessPoints +
+      firstNightKilledPoints;
 
   final GamePlayer player;
 
@@ -64,6 +65,7 @@ class GameScore {
   num donFoundSheriffPoints = 0;
   num killerBonusPoints = 0;
   num mafiaGuessPoints = 0;
+  num firstNightKilledPoints = 0;
 
   GameScore(this.player);
 }
@@ -86,7 +88,9 @@ class GameRepository {
     if (input.length < 3) return result;
 
     for (final name in _playerNames) {
-      if (name.contains(input.trim())) result.add(name.trim());
+      if (name.toLowerCase().contains(input.trim().toLowerCase())) {
+        result.add(name.trim());
+      }
     }
 
     return result;
@@ -275,6 +279,8 @@ class GameRepository {
           } else if (guessedCorrectly >= blackTeamCount / 2) {
             score.mafiaGuessPoints = _configService.guessPointsHalf;
           }
+
+          score.firstNightKilledPoints = _configService.firstNightKillPoints;
         }
       }
 

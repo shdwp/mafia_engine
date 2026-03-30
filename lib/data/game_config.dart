@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:mafia_engine/data/filesystem.dart';
-import 'package:path_provider/path_provider.dart';
 
 class GameConfigService {
   final FileSystemService _fileSystemService;
@@ -21,8 +19,8 @@ class GameConfigService {
   bool hideSensitiveInfoOnDayScreen = true;
   bool defensiveSpeechesAlwaysAvailable = true;
 
-  double musicVolume = 0.75;
-  double timerSoundVolume = 1;
+  double musicVolume = 1;
+  double timerSoundVolume = 0.8;
   int musicCrossfadeDurationSeconds = 3;
 
   int musicFadeInDurationSeconds = 3;
@@ -55,6 +53,7 @@ class GameConfigService {
 
   num get guessPointsFull => 2;
   num get guessPointsHalf => 1;
+  num get firstNightKillPoints => 1;
 
   GameConfigService({required FileSystemService fileSystemService})
     : _fileSystemService = fileSystemService {

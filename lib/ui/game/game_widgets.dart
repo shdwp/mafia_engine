@@ -639,18 +639,23 @@ class GameScoresWidget extends StatelessWidget {
             ),
             GamePlayerRoleWidget(role: player.role),
 
-            if (score.winPoints > 0) Text("${score.winPoints}"),
-            if (score.aliveBonusPoints > 0) Text("+${score.aliveBonusPoints}"),
+            if (score.winPoints > 0) Text("${score.winPoints} (win)"),
+            if (score.aliveBonusPoints > 0)
+              Text("+${score.aliveBonusPoints} (alive)"),
             if (score.sheriffChecksPoints > 0)
-              Text("+${score.sheriffChecksPoints}"),
-            if (score.doctorSavePoints > 0) Text("+${score.doctorSavePoints}"),
+              Text("+${score.sheriffChecksPoints} (guesses)"),
+            if (score.doctorSavePoints > 0)
+              Text("+${score.doctorSavePoints} (heals)"),
             if (score.priestBlockedPoints > 0)
-              Text("+${score.priestBlockedPoints}"),
+              Text("+${score.priestBlockedPoints} (blocks)"),
             if (score.donFoundSheriffPoints > 0)
-              Text("+${score.donFoundSheriffPoints}"),
+              Text("+${score.donFoundSheriffPoints} (finds)"),
             if (score.killerBonusPoints > 0)
-              Text("+${score.killerBonusPoints}"),
-            if (score.mafiaGuessPoints > 0) Text("+${score.mafiaGuessPoints}"),
+              Text("+${score.killerBonusPoints} (kills)"),
+            if (score.mafiaGuessPoints > 0)
+              Text("+${score.mafiaGuessPoints} (first kill guesses)"),
+            if (score.firstNightKilledPoints > 0)
+              Text("+${score.firstNightKilledPoints} (first kill comp)"),
 
             Text("= ${score.total}"),
           ],

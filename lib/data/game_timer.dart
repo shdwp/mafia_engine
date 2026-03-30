@@ -22,6 +22,7 @@ class GameTimer {
   int? _remainingSeconds;
   bool _paused = false;
   bool _playSounds = true;
+  int _soundSession = 0;
 
   final GameConfigService _configService;
   final Map<int, AudioPlayer> _soundPlayers = {};
@@ -64,6 +65,7 @@ class GameTimer {
   }
 
   void start(int seconds, {bool playSounds = true}) {
+    _soundSession++;
     _remainingSeconds = seconds;
     _paused = false;
     _playSounds = playSounds;
@@ -71,6 +73,7 @@ class GameTimer {
   }
 
   void stop() {
+    _soundSession++;
     _remainingSeconds = null;
     _paused = false;
     notifier.notify();
@@ -94,13 +97,12 @@ class GameTimer {
   void _playTimerSound(int remaining) {
     final player = _soundPlayers[remaining];
     if (player == null) return;
+    if (_configService.timerSoundVolume <= 0) return;
 
-    if (_configService.timerSoundVolume > 0) {
-      player.setVolume(_configService.timerSoundVolume);
-      player.seek(Duration.zero).then((_) async {
-        await Future.delayed(Duration(seconds: 1));
-        player.play();
-      });
-    }
+    final session = _soundSession;
+    player.setVolume(_configService.timerSoundVolume);
+    player.seek(Duration.zero).then((_) {
+      if (_soundSession == session && _playSounds) player.play();
+    });
   }
 }

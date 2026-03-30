@@ -158,7 +158,6 @@ class GameAddPlayersViewModel extends GameFrameViewModel<GameFrameAddPlayers> {
 
   void setName(int index, String name) {
     current.players[index] = name.trim();
-    setDirty();
   }
 
   void toggleRole(GameRole role) {
