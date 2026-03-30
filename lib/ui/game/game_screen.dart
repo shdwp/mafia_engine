@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
+import 'package:mafia_engine/data/game_frame_tree.dart';
 import 'package:mafia_engine/data/game_repository.dart';
+import 'package:mafia_engine/data/game_state.dart';
 import 'package:mafia_engine/ui/game/game_viewmodel.dart';
 import 'package:mafia_engine/ui/game/game_widgets.dart';
 import 'package:provider/provider.dart';
@@ -397,70 +399,14 @@ class _GameScreenGameState extends State<GameScreen> {
                                     onPressed: () => showModalBottomSheet(
                                       context: context,
                                       isScrollControlled: true,
-                                      builder: (context) => FractionallySizedBox(
-                                        heightFactor: 0.7,
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Column(
-                                            spacing: 16,
-                                            children: [
-                                              Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                spacing: 8,
-                                                children: [
-                                                  GameDayWidget(
-                                                    day: state.dayCount,
-                                                  ),
-                                                  GameResultWidget(
-                                                    result: state.gameResult,
-                                                  ),
-                                                ],
-                                              ),
-                                              GamePlayerCountersWidget(
-                                                state: widget.viewModel.state,
-                                              ),
-                                              if (widget
-                                                  .viewModel
-                                                  .voteOn
-                                                  .isNotEmpty)
-                                                DecoratedBox(
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.grey,
-                                                    borderRadius:
-                                                        BorderRadiusGeometry.circular(
-                                                          20,
-                                                        ),
-                                                  ),
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                          8.0,
-                                                        ),
-                                                    child: Text(
-                                                      widget.viewModel.voteOn,
-                                                    ),
-                                                  ),
-                                                ),
-                                              Expanded(
-                                                child: GamePlayerSelectorWidget(
-                                                  players: widget
-                                                      .viewModel
-                                                      .state
-                                                      .players
-                                                      .map(
-                                                        (p) =>
-                                                            GamePlayerSelectorViewModel(
-                                                              p,
-                                                            ),
-                                                      ),
-                                                  showRoles: true,
-                                                  onPress: null,
-                                                ),
-                                              ),
-                                            ],
+                                      builder: (context) =>
+                                          GameOverviewPopupWidget(
+                                            viewModel: GameOverviewViewModel(
+                                              frame: widget.viewModel.current,
+                                              state: widget.viewModel.state,
+                                              voteOn: widget.viewModel.voteOn,
+                                            ),
                                           ),
-                                        ),
-                                      ),
                                     ),
                                     child: widget.viewModel.hideTeamCounters
                                         ? GamePlayerTotalCountWidget(
@@ -588,7 +534,11 @@ class _GameScreenGameState extends State<GameScreen> {
 }
 
 class ExportToSheetsWidget extends StatefulWidget {
-  const ExportToSheetsWidget({super.key, required this.frame, required this.repository});
+  const ExportToSheetsWidget({
+    super.key,
+    required this.frame,
+    required this.repository,
+  });
   final GameFrame frame;
   final GameRepository repository;
 
@@ -626,29 +576,329 @@ class _ExportToSheetsWidgetState extends State<ExportToSheetsWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         FilledButton.icon(
-          onPressed: () => Clipboard.setData(ClipboardData(text: _dayActionsText)),
+          onPressed: () =>
+              Clipboard.setData(ClipboardData(text: _dayActionsText)),
           icon: Icon(Icons.copy),
           label: Text('Copy day actions'),
         ),
         const SizedBox(height: 4),
-        Text('Put the cursor on the first player name and paste', style: labelStyle),
+        Text(
+          'Put the cursor on the first player name and paste',
+          style: labelStyle,
+        ),
         const SizedBox(height: 16),
         FilledButton.icon(
-          onPressed: () => Clipboard.setData(ClipboardData(text: _nightActionsText)),
+          onPressed: () =>
+              Clipboard.setData(ClipboardData(text: _nightActionsText)),
           icon: Icon(Icons.copy),
           label: Text('Copy night actions'),
         ),
         const SizedBox(height: 4),
-        Text('Put the cursor on the first Priest action and paste', style: labelStyle),
+        Text(
+          'Put the cursor on the first Priest action and paste',
+          style: labelStyle,
+        ),
         const SizedBox(height: 16),
         FilledButton.icon(
-          onPressed: () => Clipboard.setData(ClipboardData(text: _firstNightGuessesText)),
+          onPressed: () =>
+              Clipboard.setData(ClipboardData(text: _firstNightGuessesText)),
           icon: Icon(Icons.copy),
           label: Text('Copy first night guesses'),
         ),
         const SizedBox(height: 4),
-        Text('Put the cursor on first guess field and paste', style: labelStyle),
+        Text(
+          'Put the cursor on first guess field and paste',
+          style: labelStyle,
+        ),
       ],
+    );
+  }
+}
+
+abstract class GameLogEntry {}
+
+class GameLogDayVoteEntry extends GameLogEntry {
+  final int day;
+  final List<GamePlayer> players;
+  GameLogDayVoteEntry(this.day, this.players);
+}
+
+class GameLogNightActionEntry extends GameLogEntry {
+  final int night;
+  final GameRole role;
+  final GamePlayer? actor;
+  final GamePlayer? target;
+  final String verb;
+  final bool saved;
+  GameLogNightActionEntry({
+    required this.night,
+    required this.role,
+    required this.actor,
+    required this.target,
+    required this.verb,
+    this.saved = false,
+  });
+}
+
+class GameOverviewViewModel {
+  final List<GamePlayer> players;
+  final List<GameLogEntry> log;
+  final GameState state;
+  final String voteOn;
+
+  GameOverviewViewModel({
+    required GameFrame frame,
+    required this.state,
+    required this.voteOn,
+  }) : players = state.players,
+       log = _buildLog(frame, state.players);
+
+  static String? _verbForRole(GameRole role) => switch (role) {
+    GameRole.priest => 'blocked',
+    GameRole.don => 'checked',
+    GameRole.sheriff => 'checked',
+    GameRole.mafia => 'killed',
+    GameRole.killer => 'killed',
+    GameRole.doctor => 'healed',
+    _ => null,
+  };
+
+  static List<GameLogEntry> _buildLog(
+    GameFrame frame,
+    List<GamePlayer> players,
+  ) {
+    final List<GameLogEntry> log = [];
+    int dayCount = 0;
+    int nightCount = 0;
+    final List<GameFrameNightRoleAction> nightBuffer = [];
+
+    void flushNight() {
+      if (nightBuffer.isEmpty) return;
+      final doctorIndex = nightBuffer
+          .where((f) => f.role == GameRole.doctor)
+          .firstOrNull
+          ?.index;
+      for (final f in nightBuffer) {
+        final verb = _verbForRole(f.role);
+        if (verb == null) continue;
+        final actor = players.where((p) => p.role == f.role).firstOrNull;
+        final target =
+            players.where((p) => p.index == f.index).firstOrNull ??
+            GamePlayer(f.index!, '?');
+        final isKill = f.role == GameRole.mafia || f.role == GameRole.killer;
+        final saved = isKill && doctorIndex != null && doctorIndex == f.index;
+        log.add(
+          GameLogNightActionEntry(
+            night: nightCount,
+            role: f.role,
+            actor: actor,
+            target: target,
+            verb: verb,
+            saved: saved,
+          ),
+        );
+      }
+      nightBuffer.clear();
+    }
+
+    GameFrame? current = frame.findFirst();
+    while (current != null) {
+      switch (current) {
+        case GameFrameNightStart _:
+          nightCount++;
+        case GameFrameDayStart _:
+          flushNight();
+          dayCount++;
+        case GameFrameDayPlayersVotedOut f:
+          final votedPlayers = f.playersVotedOut
+              .map(
+                (i) =>
+                    players.where((p) => p.index == i).firstOrNull ??
+                    GamePlayer(i, '?'),
+              )
+              .toList();
+          log.add(GameLogDayVoteEntry(dayCount, votedPlayers));
+        case GameFrameNightRoleAction f:
+          if (f.index != null) nightBuffer.add(f);
+        default:
+          break;
+      }
+      if (current == frame) break;
+      current = current.next;
+    }
+    flushNight();
+
+    return log;
+  }
+}
+
+class GameOverviewPopupWidget extends StatefulWidget {
+  const GameOverviewPopupWidget({super.key, required this.viewModel});
+  final GameOverviewViewModel viewModel;
+
+  @override
+  State<GameOverviewPopupWidget> createState() =>
+      _GameOverviewPopupWidgetState();
+}
+
+class _GameOverviewPopupWidgetState extends State<GameOverviewPopupWidget> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      heightFactor: _expanded ? 0.9 : 0.7,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 16,
+            children: [
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 8,
+                  children: [
+                    GameDayWidget(day: widget.viewModel.state.dayCount),
+                    GameResultWidget(result: widget.viewModel.state.gameResult),
+                  ],
+                ),
+              ),
+              GamePlayerCountersWidget(state: widget.viewModel.state),
+              if (widget.viewModel.voteOn.isNotEmpty)
+                Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.grey,
+                      borderRadius: BorderRadiusGeometry.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(widget.viewModel.voteOn),
+                    ),
+                  ),
+                ),
+              GamePlayerSelectorWidget(
+                players: widget.viewModel.players.map(
+                  (p) => GamePlayerSelectorViewModel(p),
+                ),
+                showRoles: true,
+                onPress: null,
+                shrinkWrap: true,
+              ),
+              if (widget.viewModel.log.isNotEmpty) ...[
+                const Divider(),
+                Column(
+                  spacing: 2,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _buildLogEntries(widget.viewModel.log),
+                ),
+              ],
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                  icon: Icon(
+                    _expanded ? Icons.close_fullscreen : Icons.open_in_full,
+                  ),
+                  label: Text(_expanded ? 'Collapse' : 'Expand'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildLogEntries(List<GameLogEntry> entries) =>
+      entries.map(_buildLogEntry).toList();
+
+  static const _dayBg = Color(0xffffffff);
+  static const _nightBg = Color(0xFF333333);
+  static const _nightFg = Colors.white;
+
+  Widget _buildLogEntry(GameLogEntry entry) {
+    switch (entry) {
+      case GameLogDayVoteEntry e:
+        return _logRow(
+          color: _dayBg,
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Day ${e.day}:',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              ...e.players.map(
+                (p) => GamePlayerBadgeWidget(
+                  player: p,
+                  showRole: true,
+                  fontSize: 14,
+                ),
+              ),
+              const Text('voted out'),
+            ],
+          ),
+        );
+      case GameLogNightActionEntry e:
+        final isKill = e.verb == 'killed';
+        return _logRow(
+          color: _nightBg,
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Night ${e.night}:',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _nightFg,
+                ),
+              ),
+              if (e.actor != null)
+                GamePlayerBadgeWidget(
+                  player: e.actor!,
+                  showRole: true,
+                  fontSize: 14,
+                ),
+              Text(
+                e.verb,
+                style: TextStyle(
+                  color: _nightFg,
+                  fontWeight: isKill ? FontWeight.bold : FontWeight.normal,
+                  decoration: e.saved ? TextDecoration.lineThrough : null,
+                  decorationColor: _nightFg,
+                ),
+              ),
+              if (e.target != null)
+                GamePlayerBadgeWidget(
+                  player: e.target!,
+                  showRole: true,
+                  fontSize: 14,
+                ),
+            ],
+          ),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _logRow({required Color color, required Widget child}) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: child,
+      ),
     );
   }
 }

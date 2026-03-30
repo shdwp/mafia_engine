@@ -162,6 +162,7 @@ class GamePlayerSelectorWidget extends StatelessWidget {
     this.showRoles = false,
     this.crossAxisCount = 4,
     this.fontSize = 21,
+    this.shrinkWrap = false,
   });
 
   final Iterable<GamePlayerSelectorViewModel> players;
@@ -169,11 +170,14 @@ class GamePlayerSelectorWidget extends StatelessWidget {
   final bool showRoles;
   final int crossAxisCount;
   final double fontSize;
+  final bool shrinkWrap;
 
   @override
   Widget build(BuildContext context) {
     return GridView.count(
       padding: EdgeInsetsGeometry.all(8),
+      shrinkWrap: shrinkWrap,
+      physics: shrinkWrap ? NeverScrollableScrollPhysics() : null,
       crossAxisCount: crossAxisCount,
       children: List.generate(players.length, (index) {
         final element = players.elementAt(index);

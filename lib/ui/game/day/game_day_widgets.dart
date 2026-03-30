@@ -49,43 +49,43 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        GameTimerWidget(
-          timeInSeconds: context.read<GameConfigService>().farewellTimer,
-          playSounds: true,
-        ),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GameTimerWidget(
+            timeInSeconds: context.read<GameConfigService>().farewellTimer,
+            playSounds: true,
+          ),
 
-        ListenableBuilder(
-          listenable: viewModel,
-          builder: (context, child) => Expanded(
-            child: ListView.separated(
+          ListenableBuilder(
+            listenable: viewModel,
+            builder: (context, child) => ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               itemBuilder: (context, index) => Column(
                 children: [
                   GamePlayerBadgeWidget(
                     player: viewModel.players.elementAt(index),
                   ),
                   if (viewModel.shouldShowGuess)
-                    SizedBox(
-                      height: 240,
-                      child: GamePlayerSelectorWidget(
-                        crossAxisCount: 6,
-                        fontSize: 12,
-                        players: viewModel.allPlayers.map(
-                          (p) => GamePlayerSelectorViewModel(
-                            p,
-                            available: true,
-                            highlighted:
-                                p.index ==
-                                viewModel.players.elementAt(index).index,
-                            selected: viewModel.isGuessSelected(index, p.index),
-                          ),
+                    GamePlayerSelectorWidget(
+                      crossAxisCount: 6,
+                      fontSize: 12,
+                      shrinkWrap: true,
+                      players: viewModel.allPlayers.map(
+                        (p) => GamePlayerSelectorViewModel(
+                          p,
+                          available: true,
+                          highlighted:
+                              p.index ==
+                              viewModel.players.elementAt(index).index,
+                          selected: viewModel.isGuessSelected(index, p.index),
                         ),
-                        onPress: (selectedIndex) =>
-                            viewModel.toggleGuess(index, selectedIndex),
                       ),
+                      onPress: (selectedIndex) =>
+                          viewModel.toggleGuess(index, selectedIndex),
                     ),
                 ],
               ),
@@ -93,8 +93,8 @@ class GameScreenDayFarewellSpeechWidget extends StatelessWidget {
               itemCount: viewModel.players.length,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
