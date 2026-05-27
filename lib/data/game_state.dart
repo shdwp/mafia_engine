@@ -148,10 +148,9 @@ class GameState {
           break;
 
         case GameFrameNarratorPenalize penaltyFrame:
-          if (penaltyFrame.index != null) {
-            final player = players[penaltyFrame.index!];
-            player.penalties += penaltyFrame.amount;
-
+          for (final (i, index) in penaltyFrame.indices.indexed) {
+            final player = players[index];
+            player.penalties += penaltyFrame.amounts[i];
             if (player.penalties >= 4) player.alive = false;
           }
           break;

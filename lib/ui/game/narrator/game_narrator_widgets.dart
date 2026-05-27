@@ -502,31 +502,59 @@ class GameScreenNarratorStateOverrideWidget extends StatelessWidget {
 class GameNarratorPenalizeViewModel
     extends GameFrameViewModel<GameFrameNarratorPenalize> {
   GameNarratorPenalizeViewModel(super.gameViewModel, super.current) {
+    _rebuild();
+  }
+
+  Iterable<GamePlayerSelectorViewModel> players = List.empty();
+  int? focusedPlayerIndex;
+
+  /// Returns (player, frameAmount) for each player with a non-zero penalty.
+  List<(GamePlayer, int)> get selectedPlayers => [
+    for (final (i, index) in current.indices.indexed)
+      (state.players[index], current.amounts[i]),
+  ];
+
+  int amountFor(int playerIndex) {
+    final pos = current.indices.indexOf(playerIndex);
+    return pos >= 0 ? current.amounts[pos] : 0;
+  }
+
+  int currentPenaltiesFor(int playerIndex) => state.players[playerIndex].penalties;
+
+  void _rebuild() {
     players = state.players.map(
       (p) => GamePlayerSelectorViewModel(
         p,
         available: true,
-        selected: current.index == p.index,
+        selected: current.indices.contains(p.index),
       ),
     );
-
-    if (current.index != null) selectedPlayer = state.players[current.index!];
   }
 
-  Iterable<GamePlayerSelectorViewModel> players = List.empty();
-  String get currentAmount => current.amount.toString();
-
-  GamePlayer? selectedPlayer;
-
   void select(int index) {
-    current.index = index;
-    selectedPlayer = state.players[index];
-    current.amount = 0;
+    focusedPlayerIndex = index;
     setDirty();
   }
 
-  void adjustPenalty(int amount) {
-    current.amount += amount;
+  void adjustPenalty(int delta) {
+    if (focusedPlayerIndex == null) return;
+    final index = focusedPlayerIndex!;
+    final pos = current.indices.indexOf(index);
+    if (pos >= 0) {
+      final newAmount = current.amounts[pos] + delta;
+      if (newAmount == 0) {
+        current.indices.removeAt(pos);
+        current.amounts.removeAt(pos);
+      } else {
+        current.amounts[pos] = newAmount;
+      }
+    } else {
+      if (delta != 0) {
+        current.indices.add(index);
+        current.amounts.add(delta);
+      }
+    }
+    _rebuild();
     setDirty();
   }
 }
@@ -542,8 +570,28 @@ class GameScreenNarratorPenalizeWidget extends StatelessWidget {
       listenable: viewModel,
       builder: (context, child) => Column(
         children: [
-          if (viewModel.selectedPlayer != null)
-            GamePlayerBadgeWidget(player: viewModel.selectedPlayer!),
+          if (viewModel.selectedPlayers.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: viewModel.selectedPlayers
+                  .map(
+                    (entry) => DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.grey,
+                        borderRadius: BorderRadiusGeometry.circular(20),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: Text(
+                          "${entry.$1.seatName}: ${entry.$2 >= 0 ? '+' : ''}${entry.$2}",
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
           Expanded(
             child: GamePlayerSelectorWidget(
               players: viewModel.players,
@@ -552,8 +600,14 @@ class GameScreenNarratorPenalizeWidget extends StatelessWidget {
             ),
           ),
           Text(
-            viewModel.selectedPlayer != null
-                ? "Added penalty points: ${viewModel.currentAmount}"
+            viewModel.focusedPlayerIndex != null
+                ? () {
+                    final idx = viewModel.focusedPlayerIndex!;
+                    final current = viewModel.currentPenaltiesFor(idx);
+                    final added = viewModel.amountFor(idx);
+                    final sign = added >= 0 ? '+' : '';
+                    return "Penalties: $current ${sign}$added";
+                  }()
                 : "Player not selected",
             style: TextStyle(fontSize: 18),
           ),

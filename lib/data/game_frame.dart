@@ -335,19 +335,19 @@ class GameFrameNarratorStateOverride extends GameFrame {
 class GameFrameNarratorPenalize extends GameFrame {
   GameFrameNarratorPenalize();
   GameFrameNarratorPenalize.fromJson(GameLoadState state)
-    : index = state.get("index"),
-      amount = state.get("amount");
+    : indices = List<int>.from(state.get("indices") ?? []),
+      amounts = List<int>.from(state.get("amounts") ?? []);
 
   @override
   Map<String, dynamic> toJson() {
     var dict = super.toJson();
-    dict.addAll({"index": index, "amount": amount});
+    dict.addAll({"indices": indices, "amounts": amounts});
     return dict;
   }
 
   @override
   bool get isDirty => false;
 
-  int? index;
-  int amount = 0;
+  List<int> indices = [];
+  List<int> amounts = [];
 }
