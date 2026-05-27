@@ -292,10 +292,22 @@ class GameState {
         next = _nextNightFrame(frame, players) ?? GameFrameDayStart();
         break;
 
-      case GameFrameDayStart frame:
+      case GameFrameCompensationImmunities frame:
         next =
             _nextFarewellFrame(frame, players) ??
             _firstDayFrame(frame, players);
+        break;
+
+      case GameFrameDayStart frame:
+        final isDay1 = last.firstBackwards<GameFrameNightStart>() == null;
+        final hasImmunities = last.firstBackwards<GameFrameCompensationImmunities>() != null;
+        if (isDay1 && !hasImmunities) {
+          next = GameFrameCompensationImmunities();
+        } else {
+          next =
+              _nextFarewellFrame(frame, players) ??
+              _firstDayFrame(frame, players);
+        }
         break;
 
       case GameFrameNightRoleAction frame:
@@ -497,12 +509,17 @@ class GameState {
       }
     }
 
+    final isFirstNight = allNights.length == 1;
+    final immuneIndices = isFirstNight
+        ? (frame.firstBackwards<GameFrameCompensationImmunities>()?.playerIndices ?? const [])
+        : const <int>[];
+
     List<int> killedIndices = [];
-    if (mafiaTarget != null && mafiaTarget != doctorTarget) {
+    if (mafiaTarget != null && mafiaTarget != doctorTarget && !immuneIndices.contains(mafiaTarget)) {
       killedIndices.add(mafiaTarget);
     }
 
-    if (killerTarget != null && killerTarget != doctorTarget) {
+    if (killerTarget != null && killerTarget != doctorTarget && !immuneIndices.contains(killerTarget)) {
       killedIndices.add(killerTarget);
     }
 

@@ -731,6 +731,10 @@ class GameRepository {
           result = GameFrameZeroNightMeet.fromJson(state);
           break;
 
+        case "GameFrameCompensationImmunities":
+          result = GameFrameCompensationImmunities.fromJson(state);
+          break;
+
         case "GameFrameDaySpeech":
           result = GameFrameDaySpeech.fromJson(state);
           break;

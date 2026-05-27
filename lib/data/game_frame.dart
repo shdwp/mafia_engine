@@ -119,6 +119,21 @@ class GameFrameZeroNightMeet extends GameFrame {
   final GameRole roleGroup;
 }
 
+class GameFrameCompensationImmunities extends GameFrame {
+  GameFrameCompensationImmunities();
+  GameFrameCompensationImmunities.fromJson(GameLoadState state)
+    : playerIndices = List<int>.from(state.get("playerIndices") ?? []);
+
+  @override
+  Map<String, dynamic> toJson() {
+    var dict = super.toJson();
+    dict.addAll({"playerIndices": playerIndices});
+    return dict;
+  }
+
+  List<int> playerIndices = [];
+}
+
 class GameFrameDaySpeech extends GameFrame {
   GameFrameDaySpeech(this.index, this.dayOpening);
   GameFrameDaySpeech.fromJson(GameLoadState state)

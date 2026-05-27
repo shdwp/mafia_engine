@@ -31,6 +31,7 @@ class GameScreenNightStartWidget extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Text("🌙", style: TextStyle(fontSize: 72)),
         GameTimerWidget(
           timeInSeconds: context.read<GameConfigService>().nightActionTimer,
           playSounds: false,
@@ -40,7 +41,6 @@ class GameScreenNightStartWidget extends StatelessWidget {
           viewModel: MusicPlayerViewModel(
             musicService: context.read(),
             playlist: viewModel.musicPlaylist,
-            showPlaylist: true,
           ),
         ),
       ],

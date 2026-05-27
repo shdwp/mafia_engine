@@ -7,6 +7,49 @@ import 'package:provider/provider.dart';
 
 import '../game_viewmodel.dart';
 
+class GameCompensationImmunitiesViewModel
+    extends GameFrameViewModel<GameFrameCompensationImmunities> {
+  GameCompensationImmunitiesViewModel(super.gameViewModel, super.current);
+
+  Iterable<GamePlayerSelectorViewModel> get players => state.players.map(
+    (p) => GamePlayerSelectorViewModel(
+      p,
+      available: true,
+      selected: current.playerIndices.contains(p.index),
+    ),
+  );
+
+  void toggle(int index) {
+    if (current.playerIndices.contains(index)) {
+      current.playerIndices.remove(index);
+    } else {
+      current.playerIndices.add(index);
+    }
+    setDirty();
+  }
+}
+
+class GameScreenCompensationImmunitiesWidget extends StatelessWidget {
+  const GameScreenCompensationImmunitiesWidget({
+    super.key,
+    required this.viewModel,
+  });
+
+  final GameCompensationImmunitiesViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, child) => GamePlayerSelectorWidget(
+        players: viewModel.players,
+        showRoles: false,
+        onPress: (index) => viewModel.toggle(index),
+      ),
+    );
+  }
+}
+
 class GameAssignRoleViewModel extends GameFrameViewModel<GameFrameAssignRole> {
   GameAssignRoleViewModel(super.gameViewModel, super.lastFrame);
 

@@ -68,6 +68,15 @@ class _GameScreenGameState extends State<GameScreen> {
             );
             break;
 
+          case GameFrameCompensationImmunities frame:
+            frameWidget = GameScreenCompensationImmunitiesWidget(
+              viewModel: GameCompensationImmunitiesViewModel(
+                widget.viewModel,
+                frame,
+              ),
+            );
+            break;
+
           case GameFrameDayFarewellSpeech frame:
             frameWidget = GameScreenDayFarewellSpeechWidget(
               viewModel: GameDayFarewellSpeechViewModel(
@@ -623,20 +632,29 @@ class GameLogDayVoteEntry extends GameLogEntry {
   GameLogDayVoteEntry(this.day, this.players);
 }
 
+class GameLogFarewellEntry extends GameLogEntry {
+  final int night;
+  final List<GamePlayer> players;
+  GameLogFarewellEntry(this.night, this.players);
+}
+
+class GameLogImmunitiesEntry extends GameLogEntry {
+  final List<GamePlayer> players;
+  GameLogImmunitiesEntry(this.players);
+}
+
 class GameLogNightActionEntry extends GameLogEntry {
   final int night;
   final GameRole role;
   final GamePlayer? actor;
   final GamePlayer? target;
   final String verb;
-  final bool saved;
   GameLogNightActionEntry({
     required this.night,
     required this.role,
     required this.actor,
     required this.target,
     required this.verb,
-    this.saved = false,
   });
 }
 
@@ -657,8 +675,8 @@ class GameOverviewViewModel {
     GameRole.priest => 'blocked',
     GameRole.don => 'checked',
     GameRole.sheriff => 'checked',
-    GameRole.mafia => 'killed',
-    GameRole.killer => 'killed',
+    GameRole.mafia => 'targeted',
+    GameRole.killer => 'targeted',
     GameRole.doctor => 'healed',
     _ => null,
   };
@@ -674,10 +692,6 @@ class GameOverviewViewModel {
 
     void flushNight() {
       if (nightBuffer.isEmpty) return;
-      final doctorIndex = nightBuffer
-          .where((f) => f.role == GameRole.doctor)
-          .firstOrNull
-          ?.index;
       for (final f in nightBuffer) {
         final verb = _verbForRole(f.role);
         if (verb == null) continue;
@@ -685,8 +699,6 @@ class GameOverviewViewModel {
         final target =
             players.where((p) => p.index == f.index).firstOrNull ??
             GamePlayer(f.index!, '?');
-        final isKill = f.role == GameRole.mafia || f.role == GameRole.killer;
-        final saved = isKill && doctorIndex != null && doctorIndex == f.index;
         log.add(
           GameLogNightActionEntry(
             night: nightCount,
@@ -694,7 +706,6 @@ class GameOverviewViewModel {
             actor: actor,
             target: target,
             verb: verb,
-            saved: saved,
           ),
         );
       }
@@ -718,8 +729,28 @@ class GameOverviewViewModel {
               )
               .toList();
           log.add(GameLogDayVoteEntry(dayCount, votedPlayers));
+        case GameFrameDayFarewellSpeech f:
+          final deadPlayers = f.playersKilled
+              .map(
+                (i) =>
+                    players.where((p) => p.index == i).firstOrNull ??
+                    GamePlayer(i, '?'),
+              )
+              .toList();
+          log.add(GameLogFarewellEntry(nightCount, deadPlayers));
         case GameFrameNightRoleAction f:
           if (f.index != null) nightBuffer.add(f);
+        case GameFrameCompensationImmunities f:
+          if (f.playerIndices.isNotEmpty) {
+            final immunePlayers = f.playerIndices
+                .map(
+                  (i) =>
+                      players.where((p) => p.index == i).firstOrNull ??
+                      GamePlayer(i, '?'),
+                )
+                .toList();
+            log.add(GameLogImmunitiesEntry(immunePlayers));
+          }
         default:
           break;
       }
@@ -837,6 +868,7 @@ class _GameOverviewPopupWidgetState extends State<GameOverviewPopupWidget> {
                 (p) => GamePlayerBadgeWidget(
                   player: p,
                   showRole: true,
+                  showDeath: false,
                   fontSize: 14,
                 ),
               ),
@@ -845,7 +877,6 @@ class _GameOverviewPopupWidgetState extends State<GameOverviewPopupWidget> {
           ),
         );
       case GameLogNightActionEntry e:
-        final isKill = e.verb == 'killed';
         return _logRow(
           color: _nightBg,
           child: Wrap(
@@ -872,7 +903,9 @@ class _GameOverviewPopupWidgetState extends State<GameOverviewPopupWidget> {
                       'Mafia',
                       style: TextStyle(
                         fontSize: 14,
-                        color: GameUILib.roleViewModel(GameRole.mafia).foreground,
+                        color: GameUILib.roleViewModel(
+                          GameRole.mafia,
+                        ).foreground,
                       ),
                     ),
                   ),
@@ -881,23 +914,67 @@ class _GameOverviewPopupWidgetState extends State<GameOverviewPopupWidget> {
                 GamePlayerBadgeWidget(
                   player: e.actor!,
                   showRole: true,
+                  showDeath: false,
                   fontSize: 14,
                 ),
-              Text(
-                e.verb,
-                style: TextStyle(
-                  color: _nightFg,
-                  fontWeight: isKill ? FontWeight.bold : FontWeight.normal,
-                  decoration: e.saved ? TextDecoration.lineThrough : null,
-                  decorationColor: _nightFg,
-                ),
-              ),
+              Text(e.verb, style: const TextStyle(color: _nightFg)),
               if (e.target != null)
                 GamePlayerBadgeWidget(
                   player: e.target!,
                   showRole: true,
+                  showDeath: false,
                   fontSize: 14,
                 ),
+            ],
+          ),
+        );
+      case GameLogFarewellEntry e:
+        return _logRow(
+          color: _nightBg,
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Night ${e.night}:',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _nightFg,
+                ),
+              ),
+              ...e.players.map(
+                (p) => GamePlayerBadgeWidget(
+                  player: p,
+                  showRole: true,
+                  showDeath: false,
+                  fontSize: 14,
+                ),
+              ),
+              const Text('died', style: TextStyle(color: _nightFg)),
+            ],
+          ),
+        );
+      case GameLogImmunitiesEntry e:
+        return _logRow(
+          color: _dayBg,
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Immunities:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              ...e.players.map(
+                (p) => GamePlayerBadgeWidget(
+                  player: p,
+                  showRole: true,
+                  showDeath: false,
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
         );

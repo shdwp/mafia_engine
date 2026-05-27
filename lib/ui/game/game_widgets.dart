@@ -16,9 +16,14 @@ class GameUIRoleViewModel {
 }
 
 class GameUILib {
-  static String formatSeatName(GamePlayer player) =>
-      "${player.seatName}${deadSuffix(player)}";
+  static String formatSeatName(GamePlayer player) => player.seatName;
+  static String formatSeatDeathName(GamePlayer player) =>
+      "${formatSeatName(player)}${deadSuffix(player)}";
+
   static String formatPlayerName(GamePlayer player) => player.name;
+  static String formatFullPlayerNameAndDeath(GamePlayer player) =>
+      "${formatSeatDeathName(player)} ${formatPlayerName(player)}";
+
   static String formatFullPlayerName(GamePlayer player) =>
       "${formatSeatName(player)} ${formatPlayerName(player)}";
 
@@ -186,7 +191,7 @@ class GamePlayerSelectorWidget extends StatelessWidget {
             : () {
                 if (onPress != null) onPress!(index);
               };
-        final String text = GameUILib.formatSeatName(element.player);
+        final String text = GameUILib.formatSeatDeathName(element.player);
 
         Widget child;
         if (showRoles) {
@@ -402,6 +407,7 @@ class GamePlayerBadgeWidget extends StatelessWidget {
   final GamePlayer player;
   final bool showRole;
   final bool showPenalties;
+  final bool showDeath;
   final double fontSize;
 
   const GamePlayerBadgeWidget({
@@ -409,6 +415,7 @@ class GamePlayerBadgeWidget extends StatelessWidget {
     required this.player,
     this.showRole = false,
     this.showPenalties = true,
+    this.showDeath = true,
     this.fontSize = 18,
   });
 
@@ -424,7 +431,9 @@ class GamePlayerBadgeWidget extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.all(8.0),
         child: Text(
-          GameUILib.formatFullPlayerName(player) +
+          (showDeath
+                  ? GameUILib.formatFullPlayerNameAndDeath(player)
+                  : GameUILib.formatFullPlayerName(player)) +
               GameUILib.formatPenalties(player),
           overflow: TextOverflow.fade,
           style: TextStyle(
@@ -632,7 +641,7 @@ class GameScoresWidget extends StatelessWidget {
         return Row(
           spacing: 4,
           children: [
-            Text(GameUILib.formatSeatName(player)),
+            Text(GameUILib.formatSeatDeathName(player)),
             Expanded(
               child: Text(
                 GameUILib.penaltiesPrefix(player) +

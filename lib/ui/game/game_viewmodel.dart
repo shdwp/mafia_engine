@@ -103,6 +103,8 @@ class GameViewModel extends ChangeNotifier {
         return "Narrator override";
       case GameFrameNarratorPenalize _:
         return "Narrator penalize";
+      case GameFrameCompensationImmunities _:
+        return "Compensation immunities";
       default:
         return "ERROR";
     }
