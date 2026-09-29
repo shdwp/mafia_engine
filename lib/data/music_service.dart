@@ -57,6 +57,8 @@ class MusicService {
 
   final List<Timer> _currentFadeTimers = [];
   final Map<MusicPlaylist, List<MusicTrack>> _musicTracks = {};
+  final Map<MusicTrack, int> _playCounts = {};
+  final Random _random = Random();
   final MusicProgressNotifier progressNotifier = MusicProgressNotifier();
   final GameConfigService _configService;
   final FileSystemService _fileSystemService;
@@ -204,6 +206,8 @@ class MusicService {
     return [];
   }
 
+  void resetPlayCounts() => _playCounts.clear();
+
   void startTrackWithFadeIn(MusicTrack track) {
     _startTrackFadeIn(track);
   }
@@ -215,7 +219,8 @@ class MusicService {
       return;
     }
 
-    startTrackWithFadeIn(playlist![Random().nextInt(playlist.length)]);
+    final track = _selectLeastPlayedSongFromPlaylist(playlistName);
+    if (track != null) startTrackWithFadeIn(track);
   }
 
   void skipWithFadeInFromPlaylist(MusicPlaylist playlistName) {
@@ -224,7 +229,7 @@ class MusicService {
     if (_currentTrack != null && _currentTrack!.playlist == playlistName) {
       track = _selectDifferentSongFromPlaylist(_currentTrack!);
     } else {
-      track = _selectRandomSongFromPlaylist(playlistName);
+      track = _selectLeastPlayedSongFromPlaylist(playlistName);
     }
     if (track == null) return;
     startTrackWithFadeIn(track);
@@ -275,6 +280,7 @@ class MusicService {
 
   Future _startTrackFadeIn(MusicTrack track) async {
     _currentTrack = track;
+    _playCounts.update(track, (count) => count + 1, ifAbsent: () => 1);
     _instantiatePlayersIfNeeded();
     await _currentPlayer!.setFilePath(_currentTrack!.path);
 
@@ -295,6 +301,7 @@ class MusicService {
   Future _startNextSongCrossfade(MusicTrack lastTrack) async {
     _currentTrack = _selectDifferentSongFromPlaylist(lastTrack);
     if (_currentTrack == null) return;
+    _playCounts.update(_currentTrack!, (count) => count + 1, ifAbsent: () => 1);
 
     _instantiatePlayersIfNeeded();
     final oldCrossfadePlayer = _crossfadePlayer;
@@ -338,25 +345,24 @@ class MusicService {
   }
 
   MusicTrack? _selectDifferentSongFromPlaylist(MusicTrack lastTrack) {
-    final playlist = _musicTracks[lastTrack.playlist];
-    if (playlist?.isNotEmpty != true) {
-      return null;
-    }
-
-    final playlistCopy = List<MusicTrack>.from(playlist!);
-    playlistCopy.remove(lastTrack);
-
-    final playlistToUse = playlistCopy.isEmpty ? playlist : playlistCopy;
-    return playlistToUse[Random().nextInt(playlistToUse.length)];
+    return _selectLeastPlayedSongFromPlaylist(lastTrack.playlist, lastTrack);
   }
 
-  MusicTrack? _selectRandomSongFromPlaylist(MusicPlaylist playlistName) {
+  MusicTrack? _selectLeastPlayedSongFromPlaylist(
+    MusicPlaylist playlistName, [
+    MusicTrack? lastTrack,
+  ]) {
     final playlist = _musicTracks[playlistName];
-    if (playlist?.isNotEmpty != true) {
-      return null;
-    }
+    if (playlist?.isNotEmpty != true) return null;
 
-    return playlist![Random().nextInt(playlist.length)];
+    final leastPlayed = playlist!
+        .map((track) => _playCounts[track] ?? 0)
+        .reduce((a, b) => a < b ? a : b);
+    final candidates = playlist
+        .where((track) => (_playCounts[track] ?? 0) == leastPlayed)
+        .toList();
+    if (candidates.length > 1) candidates.remove(lastTrack);
+    return candidates[_random.nextInt(candidates.length)];
   }
 
   void _startVolumeFade(

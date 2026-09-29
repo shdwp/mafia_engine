@@ -26,6 +26,7 @@ GoRouter router() => GoRouter(
               viewModel: SettingsViewModel(
                 configService: context.read(),
                 fileSystemService: context.read(),
+                musicService: context.read(),
               ),
             );
           },

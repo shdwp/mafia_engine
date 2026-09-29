@@ -143,8 +143,10 @@ class GameScreenNightRoleActionWidget extends StatelessWidget {
           playSounds: false,
         ),
         GamePlayerListWidget(
+          key: ValueKey(viewModel.current.id),
           players: viewModel.actionablePlayers,
           showRoles: true,
+          initiallyMasked: true,
           vertical: true,
         ),
         if (viewModel.lastTarget != null)
