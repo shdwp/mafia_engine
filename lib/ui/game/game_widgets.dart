@@ -403,11 +403,12 @@ class GameResultWidget extends StatelessWidget {
   }
 }
 
-class GamePlayerBadgeWidget extends StatelessWidget {
+class GamePlayerBadgeWidget extends StatefulWidget {
   final GamePlayer player;
   final bool showRole;
   final bool showPenalties;
   final bool showDeath;
+  final bool initiallyMasked;
   final double fontSize;
 
   const GamePlayerBadgeWidget({
@@ -416,31 +417,53 @@ class GamePlayerBadgeWidget extends StatelessWidget {
     this.showRole = false,
     this.showPenalties = true,
     this.showDeath = true,
+    this.initiallyMasked = false,
     this.fontSize = 18,
   });
 
   @override
-  Widget build(BuildContext context) {
-    var roleViewModel = GameUILib.roleViewModel(player.role);
+  State<GamePlayerBadgeWidget> createState() => _GamePlayerBadgeWidgetState();
+}
 
-    return DecoratedBox(
+class _GamePlayerBadgeWidgetState extends State<GamePlayerBadgeWidget> {
+  late bool _masked = widget.initiallyMasked;
+
+  @override
+  void didUpdateWidget(GamePlayerBadgeWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.player != widget.player ||
+        oldWidget.initiallyMasked != widget.initiallyMasked) {
+      _masked = widget.initiallyMasked;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var roleViewModel = GameUILib.roleViewModel(widget.player.role);
+
+    return GestureDetector(
+      onTap: _masked ? () => setState(() => _masked = false) : null,
+      child: DecoratedBox(
       decoration: BoxDecoration(
-        color: !showRole ? Colors.grey : roleViewModel.background,
+        color: !widget.showRole ? Colors.grey : roleViewModel.background,
         borderRadius: BorderRadiusGeometry.circular(20),
       ),
       child: Padding(
         padding: EdgeInsets.all(8.0),
         child: Text(
-          (showDeath
-                  ? GameUILib.formatFullPlayerNameAndDeath(player)
-                  : GameUILib.formatFullPlayerName(player)) +
-              GameUILib.formatPenalties(player),
+          _masked
+              ? 'Tap to reveal'
+              : (widget.showDeath
+                        ? GameUILib.formatFullPlayerNameAndDeath(widget.player)
+                        : GameUILib.formatFullPlayerName(widget.player)) +
+                    GameUILib.formatPenalties(widget.player),
           overflow: TextOverflow.fade,
           style: TextStyle(
-            fontSize: fontSize,
-            color: !showRole ? Colors.white : roleViewModel.foreground,
+            fontSize: widget.fontSize,
+            color: !widget.showRole ? Colors.white : roleViewModel.foreground,
           ),
         ),
+      ),
       ),
     );
   }
@@ -543,12 +566,14 @@ class _GameTimerState extends State<GameTimerWidget> {
 class GamePlayerListWidget extends StatelessWidget {
   final Iterable<GamePlayer> players;
   final bool showRoles;
+  final bool initiallyMasked;
   final bool vertical;
 
   const GamePlayerListWidget({
     super.key,
     required this.players,
     this.showRoles = false,
+    this.initiallyMasked = false,
     this.vertical = true,
   });
 
@@ -557,7 +582,11 @@ class GamePlayerListWidget extends StatelessWidget {
     List<Widget> playerWidgets = [];
     for (final player in players) {
       playerWidgets.add(
-        GamePlayerBadgeWidget(player: player, showRole: showRoles),
+        GamePlayerBadgeWidget(
+          player: player,
+          showRole: showRoles,
+          initiallyMasked: initiallyMasked,
+        ),
       );
     }
 

@@ -167,8 +167,10 @@ class _GameScreenZeroNightMeetState
           playSounds: false,
         ),
         GamePlayerListWidget(
+          key: ValueKey(widget.viewModel.current.id),
           players: widget.viewModel.players,
           showRoles: true,
+          initiallyMasked: true,
         ),
       ],
     );

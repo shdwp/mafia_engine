@@ -522,7 +522,27 @@ class GameRepository {
     );
     if (farewellFrame == null) return [];
 
-    final guesses = farewellFrame.firstNightGuesses;
+    final nightStart = farewellFrame.firstBackwards<GameFrameNightStart>();
+    if (nightStart == null) return [];
+
+    final actions = farewellFrame
+        .takeBackUntil<GameFrameNightRoleAction>(nightStart);
+    final mafiaTarget = actions
+        .where((action) => action.role == GameRole.mafia)
+        .firstOrNull
+        ?.index;
+    final killerTarget = actions
+        .where((action) => action.role == GameRole.killer)
+        .firstOrNull
+        ?.index;
+    final guesses = <List<int>>[];
+    final addedIndexes = <int>{};
+    for (final target in [mafiaTarget, killerTarget]) {
+      final index = farewellFrame.playersKilled.indexOf(target ?? -1);
+      if (index != -1 && addedIndexes.add(index)) {
+        guesses.add(farewellFrame.firstNightGuesses[index]);
+      }
+    }
     final maxGuesses = guesses.fold(
       0,
       (max, g) => g.length > max ? g.length : max,

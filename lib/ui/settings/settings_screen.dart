@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:mafia_engine/data/filesystem.dart';
 import 'package:mafia_engine/data/game_config.dart';
+import 'package:mafia_engine/data/music_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsViewModel extends ChangeNotifier {
   final GameConfigService configService;
   final FileSystemService fileSystemService;
+  final MusicService musicService;
   String documentsPath = "...";
   String appVersion = "...";
 
   SettingsViewModel({
     required this.configService,
     required this.fileSystemService,
+    required this.musicService,
   }) {
     fileSystemService.getStoragePath().then((path) {
       documentsPath = path;
@@ -32,6 +35,8 @@ class SettingsViewModel extends ChangeNotifier {
     configService.save();
     notifyListeners();
   }
+
+  void resetMusicPlayCounts() => musicService.resetPlayCounts();
 }
 
 class SettingsScreen extends StatelessWidget {
@@ -204,6 +209,14 @@ class SettingsScreen extends StatelessWidget {
         (v) => viewModel.configService.musicCrossfadeDurationSeconds = v,
       ),
       viewModel.configService.musicCrossfadeDurationSeconds.toString(),
+    );
+
+    widgets.add(
+      TextButton.icon(
+        onPressed: viewModel.resetMusicPlayCounts,
+        icon: Icon(Icons.restart_alt),
+        label: Text("Reset music play counts"),
+      ),
     );
 
     widgets.add(
