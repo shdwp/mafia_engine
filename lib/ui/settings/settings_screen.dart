@@ -16,7 +16,7 @@ class SettingsViewModel extends ChangeNotifier {
     required this.fileSystemService,
     required this.musicService,
   }) {
-    fileSystemService.getStoragePath().then((path) {
+    if (musicService.isAvailable) fileSystemService.getStoragePath().then((path) {
       documentsPath = path;
       notifyListeners();
     });
@@ -179,6 +179,7 @@ class SettingsScreen extends StatelessWidget {
     );
     widgets.add(Text("Set to 0 if you don't want the timer sounds.", style: TextStyle(color: Colors.grey)));
 
+    if (viewModel.musicService.isAvailable) {
     add(
       "Music volume (0-100)",
       percentageAsFractionSetter(
@@ -312,13 +313,19 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
 
+    }
+
     widgets.add(Divider());
-    widgets.add(Text("Storage path:"));
+    widgets.add(Text(viewModel.musicService.isAvailable ? "Storage path:" : "Storage:"));
     widgets.add(
       ListenableBuilder(
         listenable: viewModel,
-        builder: (context, child) =>
-            Text(viewModel.documentsPath, style: TextStyle(color: Colors.grey)),
+        builder: (context, child) => Text(
+          viewModel.musicService.isAvailable
+              ? viewModel.documentsPath
+              : "IndexedDB (browser storage)",
+          style: TextStyle(color: Colors.grey),
+        ),
       ),
     );
 

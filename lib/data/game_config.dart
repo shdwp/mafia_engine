@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:mafia_engine/data/filesystem.dart';
+import 'package:mafia_engine/data/storage.dart';
 
 class GameConfigService {
-  final FileSystemService _fileSystemService;
+  final AppStorage _storage;
 
   final int _version = 6;
   int get configVersion => _version;
@@ -55,17 +55,16 @@ class GameConfigService {
   num get guessPointsHalf => 1;
   num get firstNightKillPoints => 1;
 
-  GameConfigService({required FileSystemService fileSystemService})
-    : _fileSystemService = fileSystemService {
+  GameConfigService({required AppStorage storage})
+    : _storage = storage {
     _startupLoadSafe();
   }
 
   Future reset() async {
-    final file = await _fileSystemService.openSettingsFile();
-    await file.delete();
+    await _storage.delete("root", "settings.json");
 
     final emptyInstance = GameConfigService(
-      fileSystemService: _fileSystemService,
+      storage: _storage,
     );
     await emptyInstance._startupLoadSafe();
     await _load();
@@ -81,9 +80,6 @@ class GameConfigService {
   }
 
   Future _save() async {
-    final file = await _fileSystemService.openSettingsFile();
-    await file.create(recursive: true);
-
     final map = {
       "version": _version,
       "maxAmountOfGames": maxAmountOfGames,
@@ -101,14 +97,14 @@ class GameConfigService {
       "musicFadeInDurationSeconds": musicFadeInDurationSeconds,
       "musicFadeOutDurationSeconds": musicFadeOutDurationSeconds,
     };
-    await file.writeAsString(json.encode(map));
+    await _storage.write("root", "settings.json", json.encode(map));
   }
 
   Future _load() async {
-    final file = await _fileSystemService.openSettingsFile();
-    if (!await file.exists()) return;
+    final saved = await _storage.read("root", "settings.json");
+    if (saved == null) return;
 
-    final jsonString = await file.readAsString();
+    final jsonString = saved.content;
     final map = json.decode(jsonString) as Map<String, dynamic>;
     if (map["version"] != _version) return;
 

@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:async/async.dart';
 import 'package:intl/intl.dart';
-import 'package:mafia_engine/data/filesystem.dart';
+import 'package:mafia_engine/data/storage.dart';
 import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
@@ -71,12 +70,12 @@ class GameScore {
 }
 
 class GameRepository {
-  final FileSystemService _fileSystemService;
+  final AppStorage _storage;
   final GameConfigService _configService;
 
   final List<String> _playerNames = [];
 
-  GameRepository(this._fileSystemService, this._configService) {
+  GameRepository(this._storage, this._configService) {
     _loadPlayerNames().then(
       (value) =>
           value.isValue ? _playerNames.addAll(value.asValue!.value) : null,
@@ -124,7 +123,7 @@ class GameRepository {
   }
 
   Future delete(String fileName) async {
-    await _fileSystemService.moveToBackupFolder(fileName);
+    await _storage.move("games", "gamesBackup", fileName);
   }
 
   Future undoDuplication(String fileName) async {
@@ -132,7 +131,7 @@ class GameRepository {
   }
 
   Future undoDeletion(String fileName) async {
-    await _fileSystemService.moveFromBackupFolder(fileName);
+    await _storage.move("gamesBackup", "games", fileName);
   }
 
   Future undoLastDeletion() async {
@@ -170,45 +169,22 @@ class GameRepository {
     String folder,
   ) async {
     var result = List<GameSaveFile>.empty(growable: true);
-    final dir = await _fileSystemService.openSaveGameDirectory(folder);
-    if (!await dir.exists()) return Result.value(result);
-
-    await for (final entity in dir.list()) {
-      if (entity is File && entity.uri.pathSegments.last.endsWith(".json")) {
-        try {
-          final jsonString = await entity.readAsString();
-          final dict = json.decode(jsonString) as Map<String, dynamic>;
-
-          var name = entity.uri.pathSegments.last;
-          for (final kv in dict.entries) {
-            final state = GameLoadState(kv.value as Map<String, dynamic>);
-            if (kv.value["type"] == "GameFrameStart") {
-              final frame = GameFrameStart.fromJson(state);
-              name = frame.gameName;
-              break;
-            }
+    for (final entry in await _storage.list(folder)) {
+      if (!entry.name.endsWith(".json")) continue;
+      try {
+        final dict = json.decode(entry.content) as Map<String, dynamic>;
+        var name = entry.name;
+        for (final kv in dict.entries) {
+          final state = GameLoadState(kv.value as Map<String, dynamic>);
+          if (kv.value["type"] == "GameFrameStart") {
+            name = GameFrameStart.fromJson(state).gameName;
+            break;
           }
-
-          result.add(
-            GameSaveFile(
-              name,
-              await entity.lastModified(),
-              entity.uri.pathSegments.last,
-              entity.path,
-              dict.length,
-            ),
-          );
-        } catch (error) {
-          result.add(
-            GameSaveFile(
-              "${entity.uri.pathSegments.last} (invalid)",
-              await entity.lastModified(),
-              entity.uri.pathSegments.last,
-              entity.path,
-              0,
-            ),
-          );
         }
+        result.add(GameSaveFile(name, entry.modified, entry.name, entry.name, dict.length));
+      } catch (error) {
+        result.add(GameSaveFile("${entry.name} (invalid)", entry.modified,
+            entry.name, entry.name, 0));
       }
     }
 
@@ -666,13 +642,13 @@ class GameRepository {
   }
 
   void _savePlayerNames(Iterable<String> names) async {
-    final file = await _fileSystemService.openPlayerNamesFile();
-    await file.writeAsString(json.encode(names));
+    await _storage.write("names", "names.json", json.encode(names));
   }
 
   Future<Result<List<String>>> _loadPlayerNames() async {
-    final file = await _fileSystemService.openPlayerNamesFile();
-    final jsonString = await file.readAsString();
+    final saved = await _storage.read("names", "names.json");
+    if (saved == null || saved.content.isEmpty) return Result.value([]);
+    final jsonString = saved.content;
     final list = json.decode(jsonString) as List<dynamic>;
     return Result.value(list.map((k) => k.toString()).toList());
   }
@@ -705,10 +681,6 @@ class GameRepository {
 
   Future saveTree(GameFrame frame) async {
     final root = frame.findFirst() as GameFrameStart;
-    final file = await _fileSystemService.openSaveGameFile(
-      "${root.fileName}.json",
-    );
-
     GameFrame? currentFrame = root;
     var structure = <String, dynamic>{};
     do {
@@ -716,13 +688,13 @@ class GameRepository {
       currentFrame = currentFrame.next;
     } while (currentFrame != null);
 
-    await file.create(recursive: true);
-    await file.writeAsString(json.encode(structure));
+    await _storage.write("games", "${root.fileName}.json", json.encode(structure));
   }
 
   Future<Result<GameFrame>> _loadTree(GameSaveFile saveFile) async {
-    final file = await _fileSystemService.openSaveGameFile(saveFile.fileName);
-    final jsonString = await file.readAsString();
+    final saved = await _storage.read("games", saveFile.fileName);
+    if (saved == null) throw StateError("Save not found: ${saveFile.fileName}");
+    final jsonString = saved.content;
     final dict = json.decode(jsonString) as Map<String, dynamic>;
 
     var frameMap = <String, GameFrame>{};

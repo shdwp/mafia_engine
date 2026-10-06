@@ -16,6 +16,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   List<GameSaveFile> savedGames = List.empty();
+  bool get musicAvailable => _musicService.isAvailable;
   MusicPlaylist get musicPlaylist =>
       _musicService.findNonEmptyPlaylist(MusicPlaylist.special);
 
@@ -79,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text("Backup timer"),
               ),
 
-              MenuItemButton(
+              if (widget.viewModel.musicAvailable) MenuItemButton(
                 onPressed: () {
                   showModalBottomSheet(
                     context: context,

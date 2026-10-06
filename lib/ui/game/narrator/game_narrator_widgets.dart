@@ -163,6 +163,7 @@ class MusicPlayerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!context.read<MusicService>().isAvailable) return const SizedBox.shrink();
     final playlistViewModel = MusicPlayerPlaylistViewModel(
       service: context.read(),
       playlist: viewModel.playlist,

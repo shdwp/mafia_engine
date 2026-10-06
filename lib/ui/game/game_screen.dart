@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mafia_engine/data/game_enums.dart';
+import 'package:mafia_engine/data/music_service.dart';
 import 'package:mafia_engine/data/game_frame.dart';
 import 'package:mafia_engine/data/game_frame_tree.dart';
 import 'package:mafia_engine/data/game_repository.dart';
@@ -270,7 +271,7 @@ class _GameScreenGameState extends State<GameScreen> {
                     leadingIcon: Icon(Icons.timer),
                     child: Text("Backup timer"),
                   ),
-                  MenuItemButton(
+                  if (context.read<MusicService>().isAvailable) MenuItemButton(
                     onPressed: () {
                       showModalBottomSheet(
                         context: context,
