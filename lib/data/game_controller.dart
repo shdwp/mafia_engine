@@ -76,7 +76,7 @@ class GameController {
     );
     frame.next!.previous = frame;
 
-    _repository.saveTree(frame);
+    _repository.saveTreeInBackground(frame);
     return Result.value(GameState.calculate(frame.next!));
   }
 
@@ -96,7 +96,7 @@ class GameController {
     frame.previous = newFrame;
 
     var state = GameState.calculate(newFrame);
-    _repository.saveTree(newFrame);
+    _repository.saveTreeInBackground(newFrame);
     return Result.value(state);
   }
 
@@ -113,7 +113,7 @@ class GameController {
     frame.previous = newFrame;
 
     var newState = GameState.calculate(newFrame);
-    _repository.saveTree(newFrame);
+    _repository.saveTreeInBackground(newFrame);
     return Result.value(newState);
   }
 

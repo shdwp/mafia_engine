@@ -124,6 +124,24 @@ class SettingsScreen extends StatelessWidget {
       Row(
         spacing: 16,
         children: [
+          Expanded(child: Text("Tap to reveal roles during night actions")),
+          StatefulBuilder(
+            builder: (context, setState) => Checkbox(
+              value: viewModel.configService.tapToRevealNightRoles,
+              onChanged: (value) {
+                viewModel.configService.tapToRevealNightRoles = value ?? true;
+                setState(() {});
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    widgets.add(
+      Row(
+        spacing: 16,
+        children: [
           Expanded(child: Text("Defensive speeches always available")),
           StatefulBuilder(
             builder: (context, setState) => Checkbox(

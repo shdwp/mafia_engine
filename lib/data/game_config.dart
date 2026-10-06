@@ -17,6 +17,7 @@ class GameConfigService {
   int voteDefenseTimer = 30;
 
   bool hideSensitiveInfoOnDayScreen = true;
+  bool tapToRevealNightRoles = true;
   bool defensiveSpeechesAlwaysAvailable = true;
 
   double musicVolume = 1;
@@ -90,6 +91,7 @@ class GameConfigService {
       "nightActionTimer": nightActionTimer,
       "zeroNightMeetTimer": zeroNightMeetTimer,
       "hideSensitiveInfoOnDayScreen": hideSensitiveInfoOnDayScreen,
+      "tapToRevealNightRoles": tapToRevealNightRoles,
       "defensiveSpeechesAlwaysAvailable": defensiveSpeechesAlwaysAvailable,
       "musicVolume": musicVolume,
       "timerSoundVolume": timerSoundVolume,
@@ -116,6 +118,7 @@ class GameConfigService {
     nightActionTimer = map["nightActionTimer"];
     zeroNightMeetTimer = map["zeroNightMeetTimer"];
     hideSensitiveInfoOnDayScreen = map["hideSensitiveInfoOnDayScreen"] ?? false;
+    tapToRevealNightRoles = map["tapToRevealNightRoles"] ?? true;
     defensiveSpeechesAlwaysAvailable =
         map["defensiveSpeechesAlwaysAvailable"] ?? true;
     musicVolume = map["musicVolume"];

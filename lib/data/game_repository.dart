@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:async/async.dart';
@@ -74,6 +75,10 @@ class GameRepository {
   final GameConfigService _configService;
 
   final List<String> _playerNames = [];
+  final Map<String, Future<void>> _pendingSaves = {};
+  final StreamController<String> _saveErrors = StreamController<String>.broadcast();
+
+  Stream<String> get saveErrors => _saveErrors.stream;
 
   GameRepository(this._storage, this._configService) {
     _loadPlayerNames().then(
@@ -116,9 +121,12 @@ class GameRepository {
 
     root.fileName = newGameFileName;
     root.gameName = "$gameName ${duplicationSuffix()}";
-    await saveTree(frame);
-    root.fileName = fileName;
-    root.gameName = gameName;
+    try {
+      await saveTree(frame);
+    } finally {
+      root.fileName = fileName;
+      root.gameName = gameName;
+    }
     return Result.value(newGameFileName);
   }
 
@@ -679,16 +687,45 @@ class GameRepository {
     return "dup $suffix";
   }
 
-  Future saveTree(GameFrame frame) async {
+  Future<void> saveTree(GameFrame frame) {
     final root = frame.findFirst() as GameFrameStart;
+    final fileName = "${root.fileName}.json";
     GameFrame? currentFrame = root;
-    var structure = <String, dynamic>{};
+    final structure = <String, dynamic>{};
     do {
       structure[currentFrame!.id] = currentFrame.toJson();
       currentFrame = currentFrame.next;
     } while (currentFrame != null);
+    final content = json.encode(structure);
 
-    await _storage.write("games", "${root.fileName}.json", json.encode(structure));
+    final previous = _pendingSaves[fileName] ?? Future<void>.value();
+    final save = previous.catchError((Object _) {}).then(
+      (_) => _storage.write("games", fileName, content),
+    );
+    _pendingSaves[fileName] = save;
+    save.then(
+      (_) {
+        if (identical(_pendingSaves[fileName], save)) _pendingSaves.remove(fileName);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (identical(_pendingSaves[fileName], save)) _pendingSaves.remove(fileName);
+      },
+    );
+    return save;
+  }
+
+  void saveTreeInBackground(GameFrame frame) {
+    try {
+      final name = (frame.findFirst() as GameFrameStart).gameName;
+      saveTree(frame).then(
+        (_) {},
+        onError: (Object error, StackTrace stackTrace) {
+          _saveErrors.add('Could not save "$name". Your latest changes are only in memory.');
+        },
+      );
+    } catch (error) {
+      _saveErrors.add('Could not save game. Your latest changes are only in memory.');
+    }
   }
 
   Future<Result<GameFrame>> _loadTree(GameSaveFile saveFile) async {

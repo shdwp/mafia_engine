@@ -4,10 +4,12 @@ import 'package:uuid/uuid.dart';
 
 abstract class GameFrame {
   GameFrame() : id = Uuid().v4().substring(0, 6), time = DateTime.now();
+  String get typeId;
+
   Map<String, dynamic> toJson() => {
     "id": id,
     "time": time.millisecondsSinceEpoch,
-    "type": runtimeType.toString(),
+    "type": typeId,
     "previous": previous?.id,
     "next": next?.id,
     "dirty": dirty,
@@ -25,6 +27,8 @@ abstract class GameFrame {
 }
 
 class GameFrameStart extends GameFrame {
+  @override
+  String get typeId => "GameFrameStart";
   GameFrameStart()
     : gameName = GameRepository.newGameName(),
       fileName = GameRepository.newSaveGameFileName(),
@@ -52,6 +56,8 @@ class GameFrameStart extends GameFrame {
 }
 
 class GameFrameAddPlayers extends GameFrame {
+  @override
+  String get typeId => "GameFrameAddPlayers";
   GameFrameAddPlayers();
   GameFrameAddPlayers.fromJson(GameLoadState state)
     : players = state.getList("players"),
@@ -80,11 +86,15 @@ class GameFrameAddPlayers extends GameFrame {
 }
 
 class GameFrameZeroNightStart extends GameFrame {
+  @override
+  String get typeId => "GameFrameZeroNightStart";
   GameFrameZeroNightStart();
   GameFrameZeroNightStart.fromJson(GameLoadState state);
 }
 
 class GameFrameAssignRole extends GameFrame {
+  @override
+  String get typeId => "GameFrameAssignRole";
   GameFrameAssignRole(this.index);
   GameFrameAssignRole.fromJson(GameLoadState state)
     : index = state.get("index"),
@@ -105,6 +115,8 @@ class GameFrameAssignRole extends GameFrame {
 }
 
 class GameFrameZeroNightMeet extends GameFrame {
+  @override
+  String get typeId => "GameFrameZeroNightMeet";
   GameFrameZeroNightMeet(this.roleGroup);
   GameFrameZeroNightMeet.fromJson(GameLoadState state)
     : roleGroup = GameRole.values.byName(state.get("roleGroup"));
@@ -120,6 +132,8 @@ class GameFrameZeroNightMeet extends GameFrame {
 }
 
 class GameFrameCompensationImmunities extends GameFrame {
+  @override
+  String get typeId => "GameFrameCompensationImmunities";
   GameFrameCompensationImmunities();
   GameFrameCompensationImmunities.fromJson(GameLoadState state)
     : playerIndices = List<int>.from(state.get("playerIndices") ?? []);
@@ -135,6 +149,8 @@ class GameFrameCompensationImmunities extends GameFrame {
 }
 
 class GameFrameDaySpeech extends GameFrame {
+  @override
+  String get typeId => "GameFrameDaySpeech";
   GameFrameDaySpeech(this.index, this.dayOpening);
   GameFrameDaySpeech.fromJson(GameLoadState state)
     : index = state.get("index"),
@@ -158,6 +174,8 @@ class GameFrameDaySpeech extends GameFrame {
 }
 
 class GameFrameDayVotingStart extends GameFrame {
+  @override
+  String get typeId => "GameFrameDayVotingStart";
   GameFrameDayVotingStart(this.indexes, this.previousVoteIndexes);
   GameFrameDayVotingStart.fromJson(GameLoadState state)
     : indexes = state.getList("playerIndexes"),
@@ -178,6 +196,8 @@ class GameFrameDayVotingStart extends GameFrame {
 }
 
 class GameFrameDayPlayerVotingSpeech extends GameFrame {
+  @override
+  String get typeId => "GameFrameDayPlayerVotingSpeech";
   GameFrameDayPlayerVotingSpeech(this.index);
   GameFrameDayPlayerVotingSpeech.fromJson(GameLoadState state)
     : index = state.get("index");
@@ -193,6 +213,8 @@ class GameFrameDayPlayerVotingSpeech extends GameFrame {
 }
 
 class GameFrameDayVoteOnPlayerLeaving extends GameFrame {
+  @override
+  String get typeId => "GameFrameDayVoteOnPlayerLeaving";
   GameFrameDayVoteOnPlayerLeaving(this.playerToVoteFor);
   GameFrameDayVoteOnPlayerLeaving.fromJson(GameLoadState state)
     : playerToVoteFor = state.get("playerIndex"),
@@ -212,6 +234,8 @@ class GameFrameDayVoteOnPlayerLeaving extends GameFrame {
 }
 
 class GameFrameDayVoteOnAllLeaving extends GameFrame {
+  @override
+  String get typeId => "GameFrameDayVoteOnAllLeaving";
   GameFrameDayVoteOnAllLeaving(this.playersToVoteFor);
   GameFrameDayVoteOnAllLeaving.fromJson(GameLoadState state)
     : playersToVoteFor = state.getList("playerIndexes"),
@@ -230,6 +254,8 @@ class GameFrameDayVoteOnAllLeaving extends GameFrame {
 }
 
 class GameFrameDayPlayersVotedOut extends GameFrame {
+  @override
+  String get typeId => "GameFrameDayPlayersVotedOut";
   GameFrameDayPlayersVotedOut(this.playersVotedOut);
   GameFrameDayPlayersVotedOut.fromJson(GameLoadState state)
     : playersVotedOut = state.getList("playerIndexes");
@@ -245,16 +271,22 @@ class GameFrameDayPlayersVotedOut extends GameFrame {
 }
 
 class GameFrameNightStart extends GameFrame {
+  @override
+  String get typeId => "GameFrameNightStart";
   GameFrameNightStart();
   GameFrameNightStart.fromJson(GameLoadState state);
 }
 
 class GameFrameDayStart extends GameFrame {
+  @override
+  String get typeId => "GameFrameDayStart";
   GameFrameDayStart();
   GameFrameDayStart.fromJson(GameLoadState state);
 }
 
 class GameFrameDayFarewellSpeech extends GameFrame {
+  @override
+  String get typeId => "GameFrameDayFarewellSpeech";
   GameFrameDayFarewellSpeech(this.playersKilled, this.firstNight) {
     for (final _ in playersKilled) {
       firstNightGuesses.add([]);
@@ -286,6 +318,8 @@ class GameFrameDayFarewellSpeech extends GameFrame {
 }
 
 class GameFrameNightRoleAction extends GameFrame {
+  @override
+  String get typeId => "GameFrameNightRoleAction";
   GameFrameNightRoleAction(this.role);
   GameFrameNightRoleAction.fromJson(GameLoadState state)
     : role = GameRole.values.byName(state.get("role")),
@@ -305,6 +339,8 @@ class GameFrameNightRoleAction extends GameFrame {
 enum GameFrameNarratorStateOverrideType { dayStart, nightStart }
 
 class GameFrameNarratorStateOverride extends GameFrame {
+  @override
+  String get typeId => "GameFrameNarratorStateOverride";
   GameFrameNarratorStateOverride(this.type, this.players);
   GameFrameNarratorStateOverride.fromJson(GameLoadState state)
     : type = GameFrameNarratorStateOverrideType.values.byName(
@@ -348,6 +384,8 @@ class GameFrameNarratorStateOverride extends GameFrame {
 }
 
 class GameFrameNarratorPenalize extends GameFrame {
+  @override
+  String get typeId => "GameFrameNarratorPenalize";
   GameFrameNarratorPenalize();
   GameFrameNarratorPenalize.fromJson(GameLoadState state)
     : indices = List<int>.from(state.get("indices") ?? []),

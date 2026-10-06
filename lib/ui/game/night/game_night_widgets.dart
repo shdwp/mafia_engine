@@ -162,7 +162,7 @@ class GameScreenNightRoleActionWidget extends StatelessWidget {
           key: ValueKey(viewModel.current.id),
           players: viewModel.actionablePlayers,
           showRoles: true,
-          initiallyMasked: true,
+          initiallyMasked: context.read<GameConfigService>().tapToRevealNightRoles,
           vertical: true,
         ),
         if (viewModel.lastTarget != null)

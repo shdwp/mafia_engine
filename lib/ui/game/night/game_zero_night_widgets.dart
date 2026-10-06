@@ -170,7 +170,7 @@ class _GameScreenZeroNightMeetState
           key: ValueKey(widget.viewModel.current.id),
           players: widget.viewModel.players,
           showRoles: true,
-          initiallyMasked: true,
+          initiallyMasked: context.read<GameConfigService>().tapToRevealNightRoles,
         ),
       ],
     );
