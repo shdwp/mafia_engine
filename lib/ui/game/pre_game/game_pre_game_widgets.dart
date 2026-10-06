@@ -156,8 +156,36 @@ class GameAddPlayersViewModel extends GameFrameViewModel<GameFrameAddPlayers> {
     return current.roles.contains(role);
   }
 
+  String? get playerCountNote => switch (current.players.length) {
+    9 => "Add a virtual 10th player to be killed on the first night.",
+    11 => "Incorrect player count.",
+    13 => "Add a virtual 14th player to be killed on the first night.",
+    _ => null,
+  };
+
+  bool get hasEmptyPlayerNames => current.players.any((name) => name.isEmpty);
+
+  String? get roleSelectionNote {
+    final playerCount = current.players.length;
+    final hasPriest = roleEnabled(GameRole.priest);
+    final hasDoctor = roleEnabled(GameRole.doctor);
+    final hasKiller = roleEnabled(GameRole.killer);
+
+    if (playerCount == 10 && (hasPriest || hasDoctor || hasKiller)) {
+      return "Additional roles should be off.";
+    }
+    if (playerCount == 12 && (!hasPriest || !hasDoctor || hasKiller)) {
+      return "Select Doctor and Priest only.";
+    }
+    if (playerCount >= 13 && (!hasPriest || !hasDoctor || !hasKiller)) {
+      return "Select Doctor, Priest, and Killer.";
+    }
+    return null;
+  }
+
   void setName(int index, String name) {
     current.players[index] = name.trim();
+    notifyListeners();
   }
 
   void toggleRole(GameRole role) {
@@ -185,6 +213,12 @@ class _GameScreenInputPlayersState extends State<GameScreenAddPlayersWidget> {
       listenable: widget.viewModel,
       builder: (context, child) {
         final criticalCalculation = widget.viewModel.calculateCriticalDay();
+        final notes = [
+          if (widget.viewModel.playerCountNote case final note?) note,
+          if (widget.viewModel.roleSelectionNote case final note?) note,
+          if (widget.viewModel.hasEmptyPlayerNames)
+            "Some of the player names are empty.",
+        ];
         return Column(
           children: [
             Expanded(
@@ -236,6 +270,24 @@ class _GameScreenInputPlayersState extends State<GameScreenAddPlayersWidget> {
                 itemCount: widget.viewModel.current.players.length,
               ),
             ),
+            if (notes.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (final note in notes)
+                        Text(
+                          note,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
             IntrinsicHeight(
               child: Padding(
                 padding: const EdgeInsets.all(8.0),

@@ -33,6 +33,38 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    (async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.register(
+            new URL('offline_service_worker.js', document.baseURI)
+          );
+          // Wait for the initial app files to be cached before starting Flutter.
+          await Promise.race([
+            new Promise((resolve, reject) => {
+              const worker = registration.installing || registration.waiting || registration.active;
+              if (!worker) return reject(new Error('No offline worker available'));
+              if (worker.state === 'activated') return resolve();
+              worker.addEventListener('statechange', () => {
+                if (worker.state === 'activated') resolve();
+                if (worker.state === 'redundant') reject(new Error('Offline setup failed'));
+              });
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Offline setup timed out')), 15000)
+            ),
+          ]);
+          await navigator.serviceWorker.ready;
+        } catch (error) {
+          console.warn('Offline setup failed:', error);
+        }
+      }
+
+      const bootstrap = document.createElement('script');
+      bootstrap.src = new URL('flutter_bootstrap.js', document.baseURI);
+      document.body.appendChild(bootstrap);
+    })();
+  </script>
 </body>
 </html>
