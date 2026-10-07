@@ -250,17 +250,17 @@ class _GameScreenInputPlayersState extends State<GameScreenAddPlayersWidget> {
                           IconButton(
                             onPressed: () =>
                                 widget.viewModel.movePlayerUp(index),
-                            icon: Text("↑"),
+                            icon: Icon(Icons.arrow_upward),
                           ),
                           IconButton(
                             onPressed: () =>
                                 widget.viewModel.movePlayerDown(index),
-                            icon: Text("↓"),
+                            icon: Icon(Icons.arrow_downward),
                           ),
                           IconButton(
                             onPressed: () =>
                                 widget.viewModel.removePlayer(index),
-                            icon: Text("☒"),
+                            icon: Icon(Icons.delete_outline),
                           ),
                         ],
                       ),

@@ -58,27 +58,27 @@ class GameUILib {
       case GameRole.don:
         name = "Д";
         background = Colors.black;
-        foreground = Colors.pink;
+        foreground = const Color(0xFFFFD700);
         break;
       case GameRole.priest:
         name = "С";
         background = Colors.black;
-        foreground = Colors.yellow;
+        foreground = const Color(0xFFFF5252);
         break;
       case GameRole.sheriff:
         name = "Ш";
-        background = Colors.green;
-        foreground = Colors.black;
+        background = const Color(0xFF2457A7);
+        foreground = Colors.white;
         break;
       case GameRole.doctor:
         name = "Л";
-        background = Colors.blue;
+        background = const Color(0xFF6DBF91);
         foreground = Colors.black;
         break;
       case GameRole.killer:
         name = "K";
-        background = Colors.yellow;
-        foreground = Colors.black;
+        background = const Color(0xFF5B2C83);
+        foreground = Colors.white;
         break;
       default:
         name = "?";

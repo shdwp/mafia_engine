@@ -75,16 +75,50 @@ class GameRepository {
   final GameConfigService _configService;
 
   final List<String> _playerNames = [];
+  late final Future<void> _playerNamesReady;
   final Map<String, Future<void>> _pendingSaves = {};
   final StreamController<String> _saveErrors = StreamController<String>.broadcast();
 
   Stream<String> get saveErrors => _saveErrors.stream;
 
   GameRepository(this._storage, this._configService) {
-    _loadPlayerNames().then(
-      (value) =>
-          value.isValue ? _playerNames.addAll(value.asValue!.value) : null,
-    );
+    _playerNamesReady = _loadPlayerNames().then((value) {
+      if (value.isValue) _playerNames.addAll(value.asValue!.value);
+    });
+  }
+
+  Future<List<String>> getPlayerNames() async {
+    await _playerNamesReady;
+    return List.of(_playerNames);
+  }
+
+  Future<void> clearPlayerNames() async {
+    await _playerNamesReady;
+    _playerNames.clear();
+    await _storage.write("names", "names.json", json.encode(_playerNames));
+  }
+
+  Future<void> importPlayerNames(Iterable<String> names) async {
+    await _playerNamesReady;
+    for (final name in names) {
+      final trimmed = name.trim();
+      if (trimmed.isNotEmpty && !_playerNames.contains(trimmed)) {
+        _playerNames.add(trimmed);
+      }
+    }
+    await _storage.write("names", "names.json", json.encode(_playerNames));
+  }
+
+  Future<void> replacePlayerNames(Iterable<String> names) async {
+    await _playerNamesReady;
+    _playerNames.clear();
+    for (final name in names) {
+      final trimmed = name.trim();
+      if (trimmed.isNotEmpty && !_playerNames.contains(trimmed)) {
+        _playerNames.add(trimmed);
+      }
+    }
+    await _storage.write("names", "names.json", json.encode(_playerNames));
   }
 
   Iterable<String> suggestPlayerNames(String input) {

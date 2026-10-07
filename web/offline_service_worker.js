@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'mafia-engine-offline-v1';
+const CACHE_NAME = 'mafia-engine-offline-v6';
 const APP_FILES = [
   './',
   'index.html',
@@ -15,6 +15,12 @@ const APP_FILES = [
   'assets/FontManifest.json',
   'assets/NOTICES',
   'assets/fonts/MaterialIcons-Regular.otf',
+  'assets/fonts/Roboto-Regular.ttf',
+  'assets/fonts/Roboto-Medium.ttf',
+  'assets/fonts/OFL.txt',
+  'assets/fonts/FluentEmojiColor.ttf',
+  'assets/fonts/FluentEmojiColor-LICENSE.txt',
+  'assets/fonts/FluentEmojiArtwork-LICENSE.txt',
   'assets/packages/cupertino_icons/assets/CupertinoIcons.ttf',
   'assets/shaders/ink_sparkle.frag',
   'assets/shaders/stretch_effect.frag',

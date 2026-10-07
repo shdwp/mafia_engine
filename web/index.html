@@ -36,6 +36,38 @@
       left: env(safe-area-inset-left, 0px);
       overflow: hidden;
     }
+
+    #loading-indicator {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: white;
+      color: #333;
+      font: 16px -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    #loading-indicator::before {
+      content: '';
+      width: 32px;
+      height: 32px;
+      border: 3px solid #ddd;
+      border-top-color: #333;
+      border-radius: 50%;
+      animation: loading-spin 0.8s linear infinite;
+    }
+
+    @keyframes loading-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #loading-indicator::before { animation: none; }
+    }
   </style>
 
   <!-- iOS meta tags & icons -->
@@ -52,7 +84,12 @@
 </head>
 <body>
   <div id="flutter-host"></div>
+  <div id="loading-indicator" role="status" aria-label="Loading Mafia Engine">Loading…</div>
   <script>
+    window.addEventListener('flutter-first-frame', () => {
+      document.getElementById('loading-indicator').remove();
+    }, { once: true });
+
     (async () => {
       if ('serviceWorker' in navigator) {
         try {

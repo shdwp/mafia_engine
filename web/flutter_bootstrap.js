@@ -3,6 +3,7 @@
 
 _flutter.loader.load({
   config: {
+    canvasKitBaseUrl: new URL('canvaskit/', document.baseURI).toString(),
     hostElement: document.getElementById('flutter-host'),
   },
 });

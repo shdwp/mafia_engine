@@ -43,6 +43,10 @@ class _MafEngineAppState extends State<MafEngineApp> {
     return MaterialApp.router(
       routerConfig: router(),
       scaffoldMessengerKey: _messengerKey,
+      theme: ThemeData(
+        fontFamily: 'Roboto',
+        fontFamilyFallback: const ['Fluent Emoji Color'],
+      ),
     );
   }
 }

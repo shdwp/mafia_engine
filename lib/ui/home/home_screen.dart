@@ -5,6 +5,7 @@ import 'package:mafia_engine/data/game_repository.dart';
 import 'package:mafia_engine/data/music_service.dart';
 import 'package:mafia_engine/routing/routes.dart';
 import 'package:mafia_engine/ui/game/narrator/game_narrator_widgets.dart';
+import 'package:mafia_engine/ui/home/nicknames_sheet.dart';
 import 'package:provider/provider.dart';
 
 class HomeViewModel extends ChangeNotifier {
@@ -105,6 +106,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 leadingIcon: Icon(Icons.play_circle),
                 child: Text("Music player"),
+              ),
+
+              MenuItemButton(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (context) => FractionallySizedBox(
+                      heightFactor: 0.9,
+                      widthFactor: 1.0,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: NicknamesSheet(),
+                      ),
+                    ),
+                  );
+                },
+                leadingIcon: Icon(Icons.person),
+                child: Text("Nicknames"),
               ),
 
               MenuItemButton(

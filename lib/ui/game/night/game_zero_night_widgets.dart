@@ -77,60 +77,56 @@ class GameScreenAssignRoleWidget extends StatefulWidget {
 }
 
 class _GameScreenAssignRoleState extends State<GameScreenAssignRoleWidget> {
+  static const _roleNames = {
+    GameRole.civilian: "Цивільний",
+    GameRole.sheriff: "Шериф",
+    GameRole.doctor: "Лікар",
+    GameRole.mafia: "Мафія",
+    GameRole.don: "Дон",
+    GameRole.priest: "Священник",
+    GameRole.killer: "Кілер",
+  };
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: widget.viewModel,
       builder: (context, child) {
-        var redRoleWidgets = <Widget>[];
-        var blackRoleWidgets = <Widget>[];
-        var otherRoleWidgets = <Widget>[];
-        for (final role in widget.viewModel.allRoles) {
-          var roleWidget = TextButton(
-            onPressed: () => widget.viewModel.assign(role),
-            child: GamePlayerRoleWidget(role: role, fontSize: 24),
-          );
-
-          if (role.isCivilian) {
-            redRoleWidgets.add(roleWidget);
-          } else if (role.isMafia) {
-            blackRoleWidgets.add(roleWidget);
-          } else {
-            otherRoleWidgets.add(roleWidget);
-          }
-        }
-
-        return Column(
-          spacing: 16,
-          children: [
-            GamePlayerBadgeWidget(
-              player: widget.viewModel.player,
-              showRole: true,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text("Current: ", style: TextStyle(fontSize: 21)),
-                GamePlayerRoleWidget(role: widget.viewModel.role),
-              ],
-            ),
-            Divider(),
-            Row(
-              spacing: 16,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: redRoleWidgets,
-            ),
-            Row(
-              spacing: 16,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: blackRoleWidgets,
-            ),
-            Row(
-              spacing: 16,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: otherRoleWidgets,
-            ),
-          ],
+        return SingleChildScrollView(
+          child: Column(
+            spacing: 16,
+            children: [
+              GamePlayerBadgeWidget(
+                player: widget.viewModel.player,
+                showRole: true,
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("Current: ", style: TextStyle(fontSize: 21)),
+                  GamePlayerRoleWidget(role: widget.viewModel.role),
+                ],
+              ),
+              Divider(),
+              for (final role in widget.viewModel.allRoles)
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: TextButton(
+                    onPressed: () => widget.viewModel.assign(role),
+                    style: TextButton.styleFrom(
+                      backgroundColor: GameUILib.roleViewModel(role).background,
+                      foregroundColor: GameUILib.roleViewModel(role).foreground,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: Text(
+                      _roleNames[role] ?? GameUILib.roleViewModel(role).name,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
