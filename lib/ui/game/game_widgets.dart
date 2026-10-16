@@ -67,8 +67,8 @@ class GameUILib {
         break;
       case GameRole.sheriff:
         name = "Ш";
-        background = const Color(0xFF2457A7);
-        foreground = Colors.white;
+        background = const Color(0xFF5B8DE3);
+        foreground = Colors.black;
         break;
       case GameRole.doctor:
         name = "Л";
@@ -77,7 +77,7 @@ class GameUILib {
         break;
       case GameRole.killer:
         name = "K";
-        background = const Color(0xFF5B2C83);
+        background = const Color(0xFFE56B00);
         foreground = Colors.white;
         break;
       default:

@@ -25,6 +25,54 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenGameState extends State<GameScreen> {
+  final _backwardButtonKey = GlobalKey();
+  final _forwardButtonKey = GlobalKey();
+
+  Future<void> _showFrameNavigationMenu({required bool backward}) async {
+    final buttonKey = backward ? _backwardButtonKey : _forwardButtonKey;
+    final button = buttonKey.currentContext!.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final canNavigate = backward
+        ? widget.viewModel.current.previous != null
+        : !widget.viewModel.willMovingCommit() &&
+              widget.viewModel.current.next != null;
+    final selection = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromRect(
+        button.localToGlobal(Offset.zero, ancestor: overlay) & button.size,
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 10,
+          enabled: canNavigate,
+          child: Text(backward ? 'Back 10 frames' : 'Forward 10 frames'),
+        ),
+        PopupMenuItem(
+          value: 100,
+          enabled: canNavigate,
+          child: Text(backward ? 'Back 100 frames' : 'Forward 100 frames'),
+        ),
+        PopupMenuItem(
+          value: 0,
+          enabled: canNavigate,
+          child: Text(backward ? 'Go to start' : 'Go to end'),
+        ),
+      ],
+    );
+    if (!mounted || selection == null) return;
+
+    if (selection == 0) {
+      if (backward) {
+        widget.viewModel.moveBottom();
+      } else {
+        widget.viewModel.moveTop();
+      }
+    } else {
+      widget.viewModel.moveFrames(backward ? -selection : selection);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -484,6 +532,11 @@ class _GameScreenGameState extends State<GameScreen> {
                                     spacing: 8,
                                     children: [
                                       FilledButton(
+                                        key: _backwardButtonKey,
+                                        onLongPress: () =>
+                                            _showFrameNavigationMenu(
+                                              backward: true,
+                                            ),
                                         onPressed: () =>
                                             widget.viewModel.moveBackward(),
                                         child: Icon(Icons.keyboard_arrow_left),
@@ -496,6 +549,11 @@ class _GameScreenGameState extends State<GameScreen> {
                                         ),
                                       ),
                                       FilledButton(
+                                        key: _forwardButtonKey,
+                                        onLongPress: () =>
+                                            _showFrameNavigationMenu(
+                                              backward: false,
+                                            ),
                                         onPressed: () =>
                                             widget.viewModel.moveForward(),
                                         style: ButtonStyle(

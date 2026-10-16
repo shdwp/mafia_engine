@@ -148,6 +148,22 @@ class GameViewModel extends ChangeNotifier {
     }
   }
 
+  void moveFrames(int offset) {
+    if (offset == 0 || (offset > 0 && willMovingCommit())) return;
+
+    var target = current;
+    for (var remaining = offset.abs(); remaining > 0; remaining--) {
+      final next = offset < 0 ? target.previous : target.next;
+      if (next == null) break;
+      target = next;
+    }
+    if (target == current) return;
+
+    state = GameState.calculate(target);
+    current = state.lastFrame;
+    notifyListeners();
+  }
+
   bool willMovingCommit() {
     return _controller.shouldFrameBeCommited(current);
   }

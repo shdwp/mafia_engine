@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mafia_engine/data/game_config.dart';
 import 'package:mafia_engine/data/game_enums.dart';
 import 'package:mafia_engine/data/game_frame.dart';
+import 'package:mafia_engine/data/game_frame_tree.dart';
 import 'package:mafia_engine/data/game_state.dart';
 import 'package:provider/provider.dart';
 
@@ -314,6 +315,15 @@ class GameDayVoteOnViewModel
   late GamePlayer playerToVoteOn;
   late Iterable<GamePlayerSelectorViewModel> votingPlayers = List.empty();
 
+  bool get isLastVotingFrame {
+    final votingStart = current.firstBackwards<GameFrameDayVotingStart>();
+    return votingStart != null &&
+        votingStart.indexes.last == current.playerToVoteFor;
+  }
+
+  int get remainingVotes =>
+      votingPlayers.where((p) => p.available && !p.selected).length;
+
   void selectVoting(int index) {
     final player = state.players.elementAt(index);
     if (current.votes.contains(player.index)) {
@@ -335,6 +345,37 @@ class GameScreenDayVoteOnWidget extends StatelessWidget {
     return Column(
       children: [
         GamePlayerBadgeWidget(player: viewModel.playerToVoteOn),
+        ListenableBuilder(
+          listenable: viewModel,
+          builder: (context, child) {
+            final remainingVotes = viewModel.remainingVotes;
+            if (!viewModel.isLastVotingFrame || remainingVotes == 0) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.yellow,
+                  borderRadius: BorderRadiusGeometry.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Text(
+                    'Votes remaining: $remainingVotes',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 21,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
         Expanded(
           child: ListenableBuilder(
             listenable: viewModel,
