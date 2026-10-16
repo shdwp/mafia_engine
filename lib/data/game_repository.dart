@@ -772,95 +772,9 @@ class GameRepository {
     GameFrame? rootFrame;
 
     for (final kv in dict.entries) {
-      GameFrame? result;
-      final state = GameLoadState(kv.value as Map<String, dynamic>);
-
-      switch (kv.value["type"]) {
-        case "GameFrameStart":
-          var frame = GameFrameStart.fromJson(state);
-          rootFrame = frame;
-          result = frame;
-          break;
-
-        case "GameFrameAddPlayers":
-          result = GameFrameAddPlayers.fromJson(state);
-          break;
-
-        case "GameFrameAssignRole":
-          result = GameFrameAssignRole.fromJson(state);
-          break;
-
-        case "GameFrameZeroNightMeet":
-          result = GameFrameZeroNightMeet.fromJson(state);
-          break;
-
-        case "GameFrameCompensationImmunities":
-          result = GameFrameCompensationImmunities.fromJson(state);
-          break;
-
-        case "GameFrameDaySpeech":
-          result = GameFrameDaySpeech.fromJson(state);
-          break;
-
-        case "GameFrameDayVotingStart":
-          result = GameFrameDayVotingStart.fromJson(state);
-          break;
-
-        case "GameFrameDayPlayerVotingSpeech":
-          result = GameFrameDayPlayerVotingSpeech.fromJson(state);
-          break;
-
-        case "GameFrameDayVoteOnPlayerLeaving":
-          result = GameFrameDayVoteOnPlayerLeaving.fromJson(state);
-          break;
-
-        case "GameFrameDayVoteOnAllLeaving":
-          result = GameFrameDayVoteOnAllLeaving.fromJson(state);
-          break;
-
-        case "GameFrameDayPlayersVotedOut":
-          result = GameFrameDayPlayersVotedOut.fromJson(state);
-          break;
-
-        case "GameFrameNightRoleAction":
-          result = GameFrameNightRoleAction.fromJson(state);
-          break;
-
-        case "GameFrameNarratorPenalize":
-          result = GameFrameNarratorPenalize.fromJson(state);
-          break;
-
-        case "GameFrameNightStart":
-          result = GameFrameNightStart.fromJson(state);
-          break;
-
-        case "GameFrameZeroNightStart":
-          result = GameFrameZeroNightStart.fromJson(state);
-          break;
-
-        case "GameFrameDayStart":
-          result = GameFrameDayStart.fromJson(state);
-          break;
-
-        case "GameFrameDayFarewellSpeech":
-          result = GameFrameDayFarewellSpeech.fromJson(state);
-          break;
-
-        case "GameFrameNarratorStateOverride":
-          result = GameFrameNarratorStateOverride.fromJson(state);
-          break;
-
-        default:
-          assert(false, "unknown type: ${kv.value["type"]}");
-          break;
-      }
-
-      if (result != null) {
-        result.id = kv.value["id"];
-        result.dirty = kv.value["dirty"] as bool;
-        result.time = DateTime.fromMillisecondsSinceEpoch(kv.value["time"]);
-        frameMap[kv.key] = result;
-      }
+      final frame = GameFrame.fromJson(kv.value as Map<String, dynamic>);
+      if (frame is GameFrameStart) rootFrame = frame;
+      frameMap[kv.key] = frame;
     }
 
     for (final frame in frameMap.values) {

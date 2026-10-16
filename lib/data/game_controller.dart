@@ -80,6 +80,29 @@ class GameController {
     return Result.value(GameState.calculate(frame.next!));
   }
 
+  void saveFrameKeepingHistory(GameFrame frame) {
+    if (frame is GameFrameAddPlayers) {
+      _repository.commitPlayerNames(frame.players);
+      // Overrides store their own names; keep them aligned with each seat.
+      for (GameFrame? next = frame.next; next != null; next = next.next) {
+        if (next is GameFrameNarratorStateOverride) {
+          for (var index = 0;
+              index < frame.players.length && index < next.players.length;
+              index++) {
+            final player = next.players[index];
+            next.players[index] = (
+              frame.players[index], player.$2, player.$3, player.$4,
+            );
+          }
+        }
+      }
+    }
+    frame.dirty = false;
+    frame.previous?.next = frame;
+    frame.next?.previous = frame;
+    _repository.saveTreeInBackground(frame);
+  }
+
   bool willCommitOverwriteHistory(GameFrame frame) {
     return frame.next != null;
   }

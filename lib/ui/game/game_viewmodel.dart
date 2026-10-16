@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -19,8 +21,7 @@ class GameViewModel extends ChangeNotifier {
     required GameConfigService configService,
   }) : _controller = controller,
        _configService = configService {
-    root = state.rootFrame;
-    current = state.lastFrame;
+    _showFrame(state.lastFrame);
   }
 
   final GameController _controller;
@@ -29,6 +30,44 @@ class GameViewModel extends ChangeNotifier {
   late GameFrame root;
   late GameFrame current;
   late GameState state;
+  late GameFrame _historyCurrent;
+  Future<bool> Function()? confirmHistoryOverwrite;
+  bool _submitting = false;
+
+  void _showFrame(GameFrame frame) {
+    _historyCurrent = frame;
+    current = frame.next == null ? frame : frame.createDraft();
+    state = GameState.calculate(current);
+    root = state.rootFrame;
+  }
+
+  bool get _draftChanged {
+    if (identical(current, _historyCurrent)) return false;
+    Map<String, dynamic> data(GameFrame frame) => frame.toJson()
+      ..remove('dirty');
+    return jsonEncode(data(current)) != jsonEncode(data(_historyCurrent));
+  }
+
+  bool get _nicknameOnlyDraft {
+    final draft = current;
+    final original = _historyCurrent;
+    return !identical(draft, original) &&
+        draft is GameFrameAddPlayers &&
+        original is GameFrameAddPlayers &&
+        draft.players.length == original.players.length &&
+        setEquals(draft.roles.toSet(), original.roles.toSet());
+  }
+
+  void _saveNicknameDraft() {
+    if (!_draftChanged || !_nicknameOnlyDraft) return;
+    _controller.saveFrameKeepingHistory(current);
+    _historyCurrent = current;
+  }
+
+  void discardDraft() {
+    _showFrame(_historyCurrent);
+    notifyListeners();
+  }
 
   int get currentIndex => state.frameIndex;
   int get frameCount => state.frameCount;
@@ -126,116 +165,134 @@ class GameViewModel extends ChangeNotifier {
     }
   }
 
-  void moveForward() {
-    if (_controller.shouldFrameBeCommited(current)) {
-      var result = _controller.commitFrame(current);
-      if (result.isError) {
-        return;
+  Future<void> moveForward() async {
+    if (_submitting) return;
+    _submitting = true;
+    try {
+      final submitted = current;
+      if (willMovingCommit()) {
+        if (!current.isValid) return;
+        if (_controller.willCommitOverwriteHistory(current)) {
+          final confirmed = await confirmHistoryOverwrite?.call() ?? false;
+          if (!confirmed || !identical(submitted, current)) return;
+        }
+        // Historical edits may not set dirty (for example, game names).
+        current.dirty = true;
+        final result = _controller.commitFrame(current);
+        if (result.isError) return;
+        _showFrame(result.asValue!.value.lastFrame);
+      } else {
+        // Nickname, penalty, and compensation immunity edits keep history.
+        if (_draftChanged &&
+            (_nicknameOnlyDraft ||
+                current is GameFrameNarratorPenalize ||
+                current is GameFrameCompensationImmunities)) {
+          _controller.saveFrameKeepingHistory(current);
+          _historyCurrent = current;
+        }
+        final result = _controller.moveForward(_historyCurrent);
+        if (result.isError) return;
+        _showFrame(result.asValue!.value.lastFrame);
       }
-
-      state = result.asValue!.value;
-      current = current.next!;
       notifyListeners();
-    } else {
-      var result = _controller.moveForward(current);
-      if (result.isError) {
-        return;
-      }
-
-      state = result.asValue!.value;
-      current = state.lastFrame;
-      notifyListeners();
+    } finally {
+      _submitting = false;
     }
   }
 
   void moveFrames(int offset) {
     if (offset == 0 || (offset > 0 && willMovingCommit())) return;
 
-    var target = current;
+    if (offset > 0) _saveNicknameDraft();
+
+    var target = _historyCurrent;
     for (var remaining = offset.abs(); remaining > 0; remaining--) {
       final next = offset < 0 ? target.previous : target.next;
       if (next == null) break;
       target = next;
     }
-    if (target == current) return;
+    if (target == _historyCurrent) return;
 
-    state = GameState.calculate(target);
-    current = state.lastFrame;
+    _showFrame(target);
     notifyListeners();
   }
 
   bool willMovingCommit() {
+    if (!identical(current, _historyCurrent)) {
+      return _draftChanged &&
+          !_nicknameOnlyDraft &&
+          current is! GameFrameNarratorPenalize &&
+          current is! GameFrameCompensationImmunities;
+    }
     return _controller.shouldFrameBeCommited(current);
   }
 
   void moveTop() {
-    var result = _controller.moveTop(current);
+    _saveNicknameDraft();
+    var result = _controller.moveTop(_historyCurrent);
     if (result.isError) {
       return;
     }
 
-    state = result.asValue!.value;
-    current = state.lastFrame;
+    _showFrame(result.asValue!.value.lastFrame);
     notifyListeners();
   }
 
   void moveBottom() {
-    var result = _controller.moveBottom(current);
+    var result = _controller.moveBottom(_historyCurrent);
     if (result.isError) {
       return;
     }
 
-    state = result.asValue!.value;
-    current = state.lastFrame;
+    _showFrame(result.asValue!.value.lastFrame);
     notifyListeners();
   }
 
   bool canMoveTop() {
-    return current != current.findLast();
+    return _historyCurrent.next != null;
   }
 
   void moveBackward() {
-    var result = _controller.moveBackward(current);
+    var result = _controller.moveBackward(_historyCurrent);
     if (result.isError) {
       return;
     }
 
-    state = result.asValue!.value;
-    current = state.lastFrame;
+    _showFrame(result.asValue!.value.lastFrame);
     notifyListeners();
   }
 
   void setTop() {
+    if (!identical(current, _historyCurrent)) {
+      current.previous?.next = current;
+    }
     var result = _controller.setTop(current);
     if (result.isError) {
       return;
     }
 
-    state = result.asValue!.value;
-    current = state.lastFrame;
+    _showFrame(result.asValue!.value.lastFrame);
     current.dirty = true;
     notifyListeners();
   }
 
   void override() {
-    var result = _controller.override(current);
+    var result = _controller.override(_historyCurrent);
     if (result.isError) {
       return;
     }
 
-    state = result.asValue!.value;
-    current = state.lastFrame;
+    _showFrame(result.asValue!.value.lastFrame);
     notifyListeners();
   }
 
   void penalize() {
-    var result = _controller.penalize(current);
+    var result = _controller.penalize(_historyCurrent);
     if (result.isError) {
       return;
     }
 
-    state = result.asValue!.value;
-    current = state.lastFrame;
+    _showFrame(result.asValue!.value.lastFrame);
     notifyListeners();
   }
 }

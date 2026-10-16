@@ -15,6 +15,43 @@ abstract class GameFrame {
     "dirty": dirty,
   };
 
+  /// Copies frame data without attaching the copy to the history chain.
+  GameFrame createDraft() {
+    final draft = GameFrame.fromJson(toJson());
+    draft.previous = previous;
+    draft.next = next;
+    return draft;
+  }
+
+  static GameFrame fromJson(Map<String, dynamic> data) {
+    final state = GameLoadState(data);
+    final frame = switch (data['type']) {
+      'GameFrameStart' => GameFrameStart.fromJson(state),
+      'GameFrameAddPlayers' => GameFrameAddPlayers.fromJson(state),
+      'GameFrameAssignRole' => GameFrameAssignRole.fromJson(state),
+      'GameFrameZeroNightMeet' => GameFrameZeroNightMeet.fromJson(state),
+      'GameFrameCompensationImmunities' => GameFrameCompensationImmunities.fromJson(state),
+      'GameFrameDaySpeech' => GameFrameDaySpeech.fromJson(state),
+      'GameFrameDayVotingStart' => GameFrameDayVotingStart.fromJson(state),
+      'GameFrameDayPlayerVotingSpeech' => GameFrameDayPlayerVotingSpeech.fromJson(state),
+      'GameFrameDayVoteOnPlayerLeaving' => GameFrameDayVoteOnPlayerLeaving.fromJson(state),
+      'GameFrameDayVoteOnAllLeaving' => GameFrameDayVoteOnAllLeaving.fromJson(state),
+      'GameFrameDayPlayersVotedOut' => GameFrameDayPlayersVotedOut.fromJson(state),
+      'GameFrameNightRoleAction' => GameFrameNightRoleAction.fromJson(state),
+      'GameFrameNarratorPenalize' => GameFrameNarratorPenalize.fromJson(state),
+      'GameFrameNightStart' => GameFrameNightStart.fromJson(state),
+      'GameFrameZeroNightStart' => GameFrameZeroNightStart.fromJson(state),
+      'GameFrameDayStart' => GameFrameDayStart.fromJson(state),
+      'GameFrameDayFarewellSpeech' => GameFrameDayFarewellSpeech.fromJson(state),
+      'GameFrameNarratorStateOverride' => GameFrameNarratorStateOverride.fromJson(state),
+      _ => throw StateError("Unknown frame type: ${data['type']}"),
+    };
+    frame.id = state.get('id');
+    frame.dirty = state.get('dirty');
+    frame.time = DateTime.fromMillisecondsSinceEpoch(state.get('time'));
+    return frame;
+  }
+
   String id;
   DateTime time;
   GameFrame? previous;

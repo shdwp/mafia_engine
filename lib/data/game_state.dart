@@ -66,8 +66,13 @@ class GameState {
     int dayCount = 0;
 
     var rootFrame = lastFrame.findFirst();
-    GameFrame? frame = rootFrame;
-    while (frame != null) {
+    // Follow previous links so a detached draft can supply the final frame
+    // without changing any of the original history's forward links.
+    final frames = <GameFrame>[];
+    for (GameFrame? frame = lastFrame; frame != null; frame = frame.previous) {
+      frames.add(frame);
+    }
+    for (final frame in frames.reversed) {
       if (!ignoreLast || frame != lastFrame) {
         switch (frame) {
           case GameFrameAddPlayers addPlayersFrame:
@@ -77,7 +82,7 @@ class GameState {
                 (kv) => GamePlayer(kv.$1, kv.$2),
               ),
             );
-            rolesInTheGame = addPlayersFrame.roles;
+            rolesInTheGame = List.of(addPlayersFrame.roles);
             break;
 
           case GameFrameAssignRole assignRoleFrame:
@@ -183,8 +188,6 @@ class GameState {
           break;
       }
 
-      if (frame == lastFrame) break;
-      frame = frame.next;
     }
 
     var gameEndResult = GameState.checkForGameEnd(lastFrame, players);

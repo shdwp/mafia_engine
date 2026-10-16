@@ -452,7 +452,7 @@ class _GamePlayerBadgeWidgetState extends State<GamePlayerBadgeWidget> {
         padding: EdgeInsets.all(8.0),
         child: Text(
           _masked
-              ? 'Tap to reveal'
+              ? 'Tap to reveal${widget.showDeath ? GameUILib.deadSuffix(widget.player) : ""}'
               : (widget.showDeath
                         ? GameUILib.formatFullPlayerNameAndDeath(widget.player)
                         : GameUILib.formatFullPlayerName(widget.player)) +

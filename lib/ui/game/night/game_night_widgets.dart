@@ -37,10 +37,13 @@ class GameScreenNightStartWidget extends StatelessWidget {
           playSounds: false,
           autoStart: false,
         ),
-        MusicPlayerWidget(
-          viewModel: MusicPlayerViewModel(
-            musicService: context.read(),
-            playlist: viewModel.musicPlaylist,
+        Flexible(
+          child: MusicPlayerWidget(
+            viewModel: MusicPlayerViewModel(
+              musicService: context.read(),
+              playlist: viewModel.musicPlaylist,
+              showPlaylist: true,
+            ),
           ),
         ),
       ],
@@ -76,10 +79,13 @@ class GameScreenDayStartWidget extends StatelessWidget {
             playSounds: false,
             autoStart: false,
           ),
-          MusicPlayerWidget(
-            viewModel: MusicPlayerViewModel(
-              musicService: context.read(),
-              playlist: viewModel.musicPlaylist,
+          Flexible(
+            child: MusicPlayerWidget(
+              viewModel: MusicPlayerViewModel(
+                musicService: context.read(),
+                playlist: viewModel.musicPlaylist,
+                showPlaylist: true,
+              ),
             ),
           ),
         ],

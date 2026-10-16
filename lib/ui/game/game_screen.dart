@@ -28,6 +28,57 @@ class _GameScreenGameState extends State<GameScreen> {
   final _backwardButtonKey = GlobalKey();
   final _forwardButtonKey = GlobalKey();
 
+  @override
+  void initState() {
+    super.initState();
+    widget.viewModel.confirmHistoryOverwrite = _confirmHistoryOverwrite;
+  }
+
+  @override
+  void didUpdateWidget(covariant GameScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.confirmHistoryOverwrite = null;
+      widget.viewModel.confirmHistoryOverwrite = _confirmHistoryOverwrite;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.viewModel.confirmHistoryOverwrite = null;
+    super.dispose();
+  }
+
+  Future<bool> _confirmHistoryOverwrite() async {
+    final frame = widget.viewModel.current;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Replace later history?'),
+        content: const Text(
+          'Submitting this edited frame will delete all later frames.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Discard changes'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Replace later history'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || !identical(frame, widget.viewModel.current)) return false;
+    if (result == false) widget.viewModel.discardDraft();
+    return result == true;
+  }
+
   Future<void> _showFrameNavigationMenu({required bool backward}) async {
     final buttonKey = backward ? _backwardButtonKey : _forwardButtonKey;
     final button = buttonKey.currentContext!.findRenderObject() as RenderBox;
